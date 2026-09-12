@@ -5,3 +5,4 @@ streamlit-lottie
 pandas
 requests
 openpyxl
+supabase
