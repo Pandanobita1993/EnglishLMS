@@ -15,7 +15,16 @@ import os
 import random
 import io
 import requests
+from supabase import create_client, Client
+import streamlit as st
+# Khởi tạo kết nối (Cache_resource giúp kết nối chạy 1 lần duy nhất)
+@st.cache_resource
+def init_connection():
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
+    return create_client(url, key)
 
+supabase = init_connection()
 # ================= 1. SYSTEM & UI CONFIGURATION =================
 st.set_page_config(page_title="Smart English Class", page_icon="🏫", layout="centered")
 
@@ -163,25 +172,27 @@ if st.session_state['role'] is None:
 elif st.session_state['role'] == 'student':
     st.markdown("<h3 style='text-align: center; color: #0984e3;'>🎒 Student Login</h3>", unsafe_allow_html=True)
     
-    # BƯỚC 1: HỌC SINH NHẬP MÃ LỚP
-    class_code_input = st.text_input("🔑 Enter your Class Code (e.g., KID01):", placeholder="Ask your teacher for the code...").strip().upper()
+    class_code_input = st.text_input("🔑 Enter your Class Code:").strip().upper()
     
     if class_code_input:
-        if class_code_input not in st.session_state['db_classes']:
-            st.error("❌ Class Code not found! Please check again.")
+        # Lấy thông tin lớp từ Database
+        class_res = supabase.table("classes").select("*").eq("class_code", class_code_input).execute()
+        
+        if not class_res.data:
+            st.error("❌ Class Code not found!")
         else:
-            class_name = st.session_state['db_classes'][class_code_input]
+            class_name = class_res.data[0]['class_name']
             st.success(f"🏫 Found class: **{class_name}**")
             
-            # BƯỚC 2: CHỌN TÊN TRONG DANH SÁCH LỚP
-            students_in_class = st.session_state['db_students'][class_code_input]
+            # Kéo toàn bộ học sinh của lớp đó từ Database về
+            students_res = supabase.table("students").select("*").eq("class_code", class_code_input).execute()
+            students_in_class = students_res.data
             
             if len(students_in_class) == 0:
                 st.warning("No students added to this class yet!")
             else:
-                student_options = ["👇 Click here to select your name..."] + [s['name'] for s in students_in_class]
-                selected_name = st.selectbox("Who are you? 🕵️‍♂️", options=student_options)
-
+                student_options = ["👇 Click here..."] + [s['student_name'] for s in students_in_class]
+                selected_name = st.selectbox("Who are you?", options=student_options)
                 # BƯỚC 3: VÀO GIAO DIỆN HỌC TẬP
                 if selected_name != "👇 Click here to select your name...":
                     st.markdown("---")
@@ -769,13 +780,14 @@ elif st.session_state['role'] == 'teacher':
             with sub_class:
                 st.markdown("**Add a New Class**")
                 with st.form("add_class_form", clear_on_submit=True):
-                    c_code = st.text_input("Class Code (e.g., ENG101):")
-                    c_name = st.text_input("Class Name (e.g., Movers 1):")
+                    c_code = st.text_input("Class Code (e.g., ENG101):").strip().upper()
+                    c_name = st.text_input("Class Name (e.g., Movers 1):").strip()
+                    
                     if st.form_submit_button("➕ ADD CLASS", type="primary"):
                         if c_code and c_name:
-                            st.session_state['db_classes'][c_code.upper()] = c_name
-                            st.session_state['db_students'][c_code.upper()] = []
-                            st.success(f"✅ Class {c_name} ({c_code.upper()}) added successfully!")
+                            # Lưu thẳng lên mây!
+                            data, count = supabase.table("classes").insert({"class_code": c_code, "class_name": c_name}).execute()
+                            st.success(f"✅ Class {c_name} ({c_code}) added to Database successfully!")
                         else:
                             st.error("⚠️ Please enter both Code and Name.")
                 
