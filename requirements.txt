@@ -1,0 +1,7 @@
+streamlit
+streamlit-sortables
+streamlit-option-menu
+streamlit-lottie
+pandas
+requests
+openpyxl
