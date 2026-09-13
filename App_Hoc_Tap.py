@@ -719,7 +719,7 @@ elif st.session_state['role'] == 'teacher':
         # --------- TAB 3: MANAGE STUDENTS (Thêm học sinh vào lớp có sẵn) ---------
         with tab_student:
             st.markdown("**Add Student to Class**")
-            res_classes = supabase.table("classes").select("*").execute()
+            res_classes = supabase.table("classes").select("*").eq("teacher_username", st.session_state['current_teacher_username']).execute()
             db_classes = res_classes.data
             
             if not db_classes:
@@ -794,21 +794,38 @@ elif st.session_state['role'] == 'admin':
         tab_tch, tab_cls = st.tabs(["👨‍🏫 Manage Teachers", "🏫 Manage Classes"])
         
         # QUẢN LÝ GIÁO VIÊN
-        with tab_tch:
-            st.markdown("**Create Teacher Accounts**")
-            with st.form("add_teacher", clear_on_submit=True):
-                t_name = st.text_input("Teacher's Full Name:")
-                t_user = st.text_input("Username (Login ID):").strip()
-                t_pass = st.text_input("Password:", type="password")
-                if st.form_submit_button("➕ CREATE ACCOUNT", type="primary"):
-                    if t_user and t_pass:
-                        try:
-                            supabase.table("teachers").insert({"username": t_user, "password": t_pass, "full_name": t_name}).execute()
-                            st.success(f"✅ Account '{t_user}' created for {t_name}!")
-                        except Exception as e:
-                            st.error(f"❌ Error (Username may already exist): {e}")
-                    else:
-                        st.warning("Please fill all fields.")
+        with tab_cls:
+            st.markdown("**Create Official Classes & Assign Teachers**")
+            
+            # Kéo danh sách giáo viên về trước
+            res_tch = supabase.table("teachers").select("*").execute()
+            db_teachers = res_tch.data
+            
+            if not db_teachers:
+                st.warning("⚠️ Please create at least one Teacher account first!")
+            else:
+                with st.form("add_class_admin", clear_on_submit=True):
+                    c_code = st.text_input("Class Code (e.g., ENG101):").strip().upper()
+                    c_name = st.text_input("Class Name (e.g., Movers 1):").strip()
+                    
+                    # Danh sách chọn giáo viên
+                    teacher_options = [f"{t['username']} - {t['full_name']}" for t in db_teachers]
+                    selected_teacher_full = st.selectbox("Assign Teacher:", teacher_options)
+                    selected_t_username = selected_teacher_full.split(" - ")[0]
+                    
+                    if st.form_submit_button("➕ ADD CLASS", type="primary"):
+                        if c_code and c_name:
+                            try:
+                                supabase.table("classes").insert({
+                                    "class_code": c_code, 
+                                    "class_name": c_name,
+                                    "teacher_username": selected_t_username
+                                }).execute()
+                                st.success(f"✅ Class {c_name} assigned to teacher '{selected_t_username}' successfully!")
+                            except Exception as e:
+                                st.error(f"❌ Error adding class: {e}")
+                        else:
+                            st.error("⚠️ Please enter both Code and Name.")
                             
         # QUẢN LÝ MÃ LỚP TRUNG TÂM
         with tab_cls:
