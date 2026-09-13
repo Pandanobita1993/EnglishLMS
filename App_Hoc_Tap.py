@@ -113,7 +113,7 @@ def set_kids_background(image_path):
         </style>
     """, unsafe_allow_html=True)
 
-set_kids_background("Background.png")
+set_kids_background("Background.jpg")
 
 st.markdown("<h1 style='text-align: center;'>🌟 CAMBRIDGE KIDS LMS 🌟</h1>", unsafe_allow_html=True)
 
