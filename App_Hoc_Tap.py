@@ -56,23 +56,20 @@ if 'do_scroll' not in st.session_state: st.session_state['do_scroll'] = False
 def set_responsive_background(image_path, current_role):
     try:
         bin_str = get_base64_of_bin_file(image_path)
-        # Tự động nhận diện đuôi ảnh (png hay jpg) để trình duyệt không bị lỗi
         ext = image_path.split('.')[-1].lower()
         mime = "image/png" if ext == "png" else "image/jpeg"
         bg_css = f'background-image: url("data:{mime};base64,{bin_str}");'
     except Exception as e: 
-        # Báo lỗi đỏ ra màn hình nếu sai tên ảnh để bồ dễ phát hiện
         st.error(f"⚠️ Không tìm thấy ảnh nền. Bồ kiểm tra lại tên file nhé: {e}")
         bg_css = 'background-color: #f5f6fa;'
     
-    # Độ trong suốt: Home 15%, Các trang khác 75%
-    bg_opacity = "rgba(255, 255, 255, 0.15)" if current_role is None else "rgba(255, 255, 255, 0.75)"
+    # Độ trong suốt: Home 15%, Các trang khác 85% (Trắng đục hơn xíu để dễ đọc chữ)
+    bg_opacity = "rgba(255, 255, 255, 0.15)" if current_role is None else "rgba(255, 255, 255, 0.85)"
 
     st.markdown(f"""
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap');
         
-        /* Trả lại class .stApp nguyên thủy - hiển thị tốt trên 100% thiết bị */
         .stApp {{
             {bg_css}
             background-size: cover;
@@ -80,11 +77,13 @@ def set_responsive_background(image_path, current_role):
             background-attachment: fixed;
         }}
         
-        /* Khung kính mờ 75% */
-        [data-testid="stAppViewBlockContainer"] {{
+        /* GỌI TẤT CẢ CÁC TÊN CỦA KHUNG CHỨA (Chống lỗi phiên bản Streamlit) */
+        .block-container, 
+        [data-testid="stAppViewBlockContainer"], 
+        [data-testid="stMainBlockContainer"] {{
             background: {bg_opacity} !important;
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(12px) !important;
+            -webkit-backdrop-filter: blur(12px) !important;
             border-radius: 20px;
             padding: 2rem !important;
             margin-top: 1rem;
@@ -93,10 +92,7 @@ def set_responsive_background(image_path, current_role):
         }}
 
         /* Ép chữ đậm chống Dark Mode */
-        [data-testid="stAppViewBlockContainer"] p, 
-        [data-testid="stAppViewBlockContainer"] span, 
-        [data-testid="stAppViewBlockContainer"] label, 
-        div[data-baseweb="select"] {{
+        .block-container p, .block-container span, .block-container label, div[data-baseweb="select"] {{
             color: #2d3436 !important; 
             font-family: 'Nunito', sans-serif !important; 
             font-weight: 700;
