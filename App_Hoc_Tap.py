@@ -56,60 +56,33 @@ if 'do_scroll' not in st.session_state: st.session_state['do_scroll'] = False
 def set_responsive_background(image_path, current_role):
     try:
         bin_str = get_base64_of_bin_file(image_path)
-        bg_css = f'background-image: url("data:image/jpeg;base64,{bin_str}");'
-    except: bg_css = 'background-color: #f5f6fa;'
+        # Sửa thành image/png để tương thích tốt nhất
+        bg_css = f'background-image: url("data:image/png;base64,{bin_str}");'
+    except Exception as e: 
+        # Báo lỗi đỏ ra màn hình nếu sai tên ảnh để bồ dễ phát hiện
+        st.error(f"⚠️ Không tìm thấy ảnh nền. Bồ kiểm tra lại tên file nhé: {e}")
+        bg_css = 'background-color: #f5f6fa;'
     
-    # Ở Home trong suốt 15%, vào trong đục 95%
-    bg_opacity = "rgba(255, 255, 255, 0.15)" if current_role is None else "rgba(255, 255, 255, 0.95)"
-
-    st.markdown(f"""
-        <style>
-        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap');
-        .stApp {{ {bg_css} background-size: cover; background-position: center; background-attachment: fixed; }}
-        
-        /* Chốt cứng khung nền để không bị vỡ trên Mobile */
-        .block-container {{
-            background: {bg_opacity} !important;
-            border-radius: 20px;
-            padding: 2rem !important;
-            margin-top: 1rem;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            transition: background 0.3s ease-in-out;
-        }}
-
-        /* Ép chữ đậm chống Dark Mode */
-        .block-container p, .block-container span, .block-container label, div[data-baseweb="select"] {{
-            color: #2d3436 !important; font-family: 'Nunito', sans-serif !important; font-weight: 700;
-        }}
-        
-        h1, h2, h3, h4, h5 {{ 
-            color: transparent !important; background: linear-gradient(90deg, #ff6b6b, #feca57, #48dbfb);
-            -webkit-background-clip: text; text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
-            font-weight: 900 !important; font-family: 'Nunito', sans-serif !important;
-        }}
-        </style>
-    """, unsafe_allow_html=True)
-
-# Gọi hàm CSS và truyền trạng thái Role hiện tại vào
-def set_responsive_background(image_path, current_role):
-    try:
-        bin_str = get_base64_of_bin_file(image_path)
-        bg_css = f'background-image: url("data:image/jpeg;base64,{bin_str}");'
-    except: bg_css = 'background-color: #f5f6fa;'
-    
-    # Đổi 0.95 thành 0.75 để nền trong hơn. Ở Home giữ mức 0.15.
+    # Độ trong suốt: Home 15%, Các trang khác 75%
     bg_opacity = "rgba(255, 255, 255, 0.15)" if current_role is None else "rgba(255, 255, 255, 0.75)"
 
     st.markdown(f"""
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap');
-        .stApp {{ {bg_css} background-size: cover; background-position: center; background-attachment: fixed; }}
         
-        /* Chốt cứng khung nền & Thêm hiệu ứng kính mờ (blur) */
-        .block-container {{
+        /* Chèn nền vào lớp sâu nhất của Streamlit để không bị đè */
+        [data-testid="stAppViewContainer"] > .main {{
+            {bg_css}
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }}
+        
+        /* Khung kính mờ 75% */
+        [data-testid="stAppViewBlockContainer"] {{
             background: {bg_opacity} !important;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             border-radius: 20px;
             padding: 2rem !important;
             margin-top: 1rem;
@@ -118,8 +91,13 @@ def set_responsive_background(image_path, current_role):
         }}
 
         /* Ép chữ đậm chống Dark Mode */
-        .block-container p, .block-container span, .block-container label, div[data-baseweb="select"] {{
-            color: #2d3436 !important; font-family: 'Nunito', sans-serif !important; font-weight: 700;
+        [data-testid="stAppViewBlockContainer"] p, 
+        [data-testid="stAppViewBlockContainer"] span, 
+        [data-testid="stAppViewBlockContainer"] label, 
+        div[data-baseweb="select"] {{
+            color: #2d3436 !important; 
+            font-family: 'Nunito', sans-serif !important; 
+            font-weight: 700;
         }}
         
         h1, h2, h3, h4, h5 {{ 
@@ -129,6 +107,12 @@ def set_responsive_background(image_path, current_role):
         }}
         </style>
     """, unsafe_allow_html=True)
+
+# Bật ảnh nền (Nhớ đổi "Background_1.jpg" thành đúng tên file ảnh bồ đang có trên GitHub)
+set_responsive_background("Background_1.jpg", st.session_state['role'])
+
+# Tiêu đề App
+st.markdown("<h1 style='text-align: center;'>🌟 CAMBRIDGE KIDS LMS 🌟</h1>", unsafe_allow_html=True)
 
 # ================= 3. THANH ĐIỀU HƯỚNG RESPONSIVE (OPTION MENU) =================
 nav_options = ["Home", "Student", "Teacher", "Admin"]
