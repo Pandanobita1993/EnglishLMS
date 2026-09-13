@@ -138,26 +138,29 @@ if 'db_students' not in st.session_state:
         "KID02": []
     }
 # ================= 3. THANH ĐIỀU HƯỚNG SIÊU TỐC (NATIVE FAST MENU) =================
-# Bọc menu trong một form để giữ layout đẹp (bằng css tự nhận ở trên)
 st.markdown("<br>", unsafe_allow_html=True)
-c1, c2, c3 = st.columns(3)
+c1, c2, c3, c4 = st.columns(4)
 
-# Xác định nút nào đang được chọn để tô màu đậm (primary), nút còn lại mờ (secondary)
 btn_home = "primary" if st.session_state['role'] is None else "secondary"
 btn_student = "primary" if st.session_state['role'] == 'student' else "secondary"
 btn_teacher = "primary" if st.session_state['role'] == 'teacher' else "secondary"
+btn_admin = "primary" if st.session_state['role'] == 'admin' else "secondary"
 
 with c1:
     if st.button("🏠 Home", type=btn_home, use_container_width=True):
         st.session_state['role'] = None
         st.rerun()
 with c2:
-    if st.button("🎒 Student Portal", type=btn_student, use_container_width=True):
+    if st.button("🎒 Student", type=btn_student, use_container_width=True):
         st.session_state['role'] = 'student'
         st.rerun()
 with c3:
-    if st.button("👨‍🏫 Teacher Portal", type=btn_teacher, use_container_width=True):
+    if st.button("👨‍🏫 Teacher", type=btn_teacher, use_container_width=True):
         st.session_state['role'] = 'teacher'
+        st.rerun()
+with c4:
+    if st.button("🛡️ Admin", type=btn_admin, use_container_width=True):
+        st.session_state['role'] = 'admin'
         st.rerun()
 st.markdown("---")
 
@@ -661,20 +664,23 @@ elif st.session_state['role'] == 'student':
 # ================= 6. GÓC GIÁO VIÊN (TEACHER PORTAL) =================
 elif st.session_state['role'] == 'teacher':
     if not st.session_state['is_teacher_logged_in']:
-        st.markdown("### 🔑 Admin Login")
-        user_input = st.text_input("Username:")
-        pass_input = st.text_input("Password:", type="password")
+        st.markdown("### 👨‍🏫 Teacher Login")
+        u_tch = st.text_input("Username:")
+        p_tch = st.text_input("Password:", type="password")
         
         if st.button("🔓 Login", type="primary"):
-            if user_input == "admin" and pass_input == "123456":
+            # Tra cứu tài khoản từ Database Supabase
+            res = supabase.table("teachers").select("*").eq("username", u_tch).eq("password", p_tch).execute()
+            if res.data:
                 st.session_state['is_teacher_logged_in'] = True
+                st.session_state['current_teacher'] = res.data[0]['full_name']
                 st.rerun()
             else:
-                st.error("❌ Invalid username or password!")
+                st.error("❌ Invalid username or password. Please contact Admin.")
     else:
         c_title, c_btn = st.columns([4, 1])
         with c_title:
-            st.success("✨ Welcome back to the Teacher Dashboard!")
+            st.success(f"✨ Welcome back, Teacher **{st.session_state['current_teacher']}**!")
         with c_btn:
             if st.button("🔒 Logout"):
                 st.session_state['is_teacher_logged_in'] = False
@@ -682,8 +688,8 @@ elif st.session_state['role'] == 'teacher':
             
         st.markdown("---")
         
-        # TEACHER DASHBOARD TABS
-        tab_assign, tab_bank, tab_class = st.tabs(["🛠️ Assign Homework", "🏦 Question Bank", "👥 Class & Students"])
+        # TEACHER DASHBOARD (Giáo viên chỉ được quản lý Học sinh, Bài tập, Ngân hàng câu hỏi)
+        tab_assign, tab_bank, tab_student = st.tabs(["🛠️ Assign Homework", "🏦 Question Bank", "👧🏻 Manage Students"])
         
         # --------- TAB 1: ASSIGN HOMEWORK ---------
         with tab_assign:
@@ -708,142 +714,114 @@ elif st.session_state['role'] == 'teacher':
 
         # --------- TAB 2: QUESTION BANK ---------
         with tab_bank:
-            sub_manual, sub_import = st.tabs(["✍️ Manual Entry", "📁 Excel Import"])
+            st.info("Question Bank interface goes here (Keep your existing Excel import logic).")
+
+        # --------- TAB 3: MANAGE STUDENTS (Thêm học sinh vào lớp có sẵn) ---------
+        with tab_student:
+            st.markdown("**Add Student to Class**")
+            res_classes = supabase.table("classes").select("*").execute()
+            db_classes = res_classes.data
             
-            with sub_manual:
-                st.markdown("#### Create Question Manually")
-                with st.form("manual_entry_form", clear_on_submit=True):
-                    c1, c2 = st.columns(2)
-                    with c1:
-                        st.selectbox("Book", ["Kid's Box 1", "Kid's Box 2"])
-                        st.selectbox("Unit", ["Unit 1", "Unit 2"])
-                    with c2:
-                        st.selectbox("Task Type", ["Fill in the blank", "Word Puzzle", "Matching"])
-                        st.selectbox("Skill", ["Vocabulary", "Grammar"])
+            if not db_classes:
+                st.warning("⚠️ No classes found. Please ask Admin to create a class first!")
+            else:
+                with st.form("add_student_form", clear_on_submit=True):
+                    class_options = [f"{c['class_code']} - {c['class_name']}" for c in db_classes]
+                    selected_class_full = st.selectbox("Assign to Class:", class_options)
+                    selected_code = selected_class_full.split(" - ")[0]
                     
-                    q_text = st.text_input("Question (Use ___ for blanks):")
-                    q_ans = st.text_input("Correct Answer:")
-                    q_dist = st.text_input("Distractors (comma separated):", placeholder="e.g. supermarket, BigC")
+                    s_name = st.text_input("Student Name (e.g., Harry Potter):").strip()
+                    s_avatar = st.file_uploader("Upload Student Avatar (Optional)", type=["png", "jpg", "jpeg"])
                     
-                    if st.form_submit_button("💾 SAVE TO DATABASE", type="primary", use_container_width=True):
-                        if q_text and q_ans:
-                            st.success(f"✅ Successfully saved: '{q_text}'")
+                    if st.form_submit_button("➕ ADD STUDENT", type="primary"):
+                        if s_name:
+                            avatar_b64 = base64.b64encode(s_avatar.read()).decode('utf-8') if s_avatar else None
+                            try:
+                                supabase.table("students").insert({
+                                    "class_code": selected_code, "student_name": s_name, "avatar": avatar_b64
+                                }).execute()
+                                st.success(f"✅ Added {s_name} to class {selected_code} successfully!")
+                            except Exception as e:
+                                st.error(f"❌ Error adding student: {e}")
                         else:
-                            st.error("⚠️ Please provide both Question and Answer.")
+                            st.error("⚠️ Please enter the student's name.")
                             
-            with sub_import:
-                st.markdown("#### Bulk Import via Excel")
-                
-                # Tạo file Excel mẫu cho giáo viên tải về
-                df_template = pd.DataFrame({
-                    "Book": ["Kid's Box 1"],
-                    "Unit": ["Unit 1"],
-                    "Skill": ["Vocabulary"],
-                    "Task_Type": ["Fill_in_the_blank"],
-                    "Question": ["She went ___ to buy a dress."],
-                    "Correct_Answer": ["shopping"],
-                    "Distractors": ["supermarket, BigC"]
-                })
-                
-                towrite = io.BytesIO()
-                df_template.to_excel(towrite, index=False, engine='openpyxl')
-                towrite.seek(0)
-                
-                st.download_button(
-                    label="⬇️ DOWNLOAD EXCEL TEMPLATE",
-                    data=towrite,
-                    file_name="QuestionBank_Template.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-                
-                st.markdown("---")
-                uploaded_file = st.file_uploader("Upload filled Excel file here", type=["xlsx", "xls"])
-                
-                if uploaded_file is not None:
-                    try:
-                        df_import = pd.read_excel(uploaded_file)
-                        st.write(f"🔍 **Found {len(df_import)} questions in file:**")
-                        st.dataframe(df_import, use_container_width=True)
-                        
-                        if st.button("🚀 CONFIRM IMPORT", type="primary"):
-                            st.balloons()
-                            st.success(f"✅ Successfully imported {len(df_import)} questions into the Database!")
-                    except Exception as e:
-                        st.error(f"❌ Error reading file: {e}")
-
-        # --------- TAB 3: CLASS & STUDENT MANAGEMENT ---------
-        with tab_class:
-            st.markdown("#### 🏫 Class & Student Manager")
-            
-            sub_class, sub_student = st.tabs(["📚 Manage Classes", "👧🏻 Manage Students"])
-            
-            with sub_class:
-                st.markdown("**Add a New Class**")
-                with st.form("add_class_form", clear_on_submit=True):
-                    c_code = st.text_input("Class Code (e.g., ENG101):").strip().upper()
-                    c_name = st.text_input("Class Name (e.g., Movers 1):").strip()
-                    
-                    if st.form_submit_button("➕ ADD CLASS", type="primary"):
-                        if c_code and c_name:
-                            # Lưu thẳng lên mây!
-                            data, count = supabase.table("classes").insert({"class_code": c_code, "class_name": c_name}).execute()
-                            st.success(f"✅ Class {c_name} ({c_code}) added to Database successfully!")
-                        else:
-                            st.error("⚠️ Please enter both Code and Name.")
-                
-                # Bảng hiển thị danh sách lớp
-                st.markdown("**Current Classes**")
-                class_df = pd.DataFrame([{"Class Code": k, "Class Name": v, "Total Students": len(st.session_state['db_students'][k])} for k, v in st.session_state['db_classes'].items()])
-                st.dataframe(class_df, use_container_width=True, hide_index=True)
-
-            with sub_student:
-                st.markdown("**Add Student to Class**")
-                if not st.session_state['db_classes']:
-                    st.warning("Please add a class first!")
-                else:
-                    with st.form("add_student_form", clear_on_submit=True):
-                        # Chọn mã lớp (Kèm tên cho dễ nhớ)
-                        class_options = [f"{code} - {name}" for code, name in st.session_state['db_classes'].items()]
-                        selected_class_full = st.selectbox("Assign to Class:", class_options)
-                        selected_code = selected_class_full.split(" - ")[0]
-                        
-                        s_name = st.text_input("Student Name (e.g., Harry Potter):")
-                        
-                        # Upload hình ảnh
-                        s_avatar = st.file_uploader("Upload Student Avatar (Optional)", type=["png", "jpg", "jpeg"])
-                        
-                        if st.form_submit_button("➕ ADD STUDENT", type="primary"):
-                            if s_name:
-                                # Chuyển ảnh thành base64 để lưu thẳng vào Session/DB
-                                avatar_b64 = None
-                                if s_avatar is not None:
-                                    avatar_b64 = base64.b64encode(s_avatar.read()).decode('utf-8')
-                                
-                                st.session_state['db_students'][selected_code].append({
-                                    "name": s_name,
-                                    "avatar": avatar_b64
-                                })
-                                st.success(f"✅ Added {s_name} to class {selected_code}!")
-                            else:
-                                st.error("⚠️ Please enter the student's name.")
-                                
-                # Chọn lớp để xem danh sách học sinh
-                st.markdown("---")
-                view_class = st.selectbox("View Students in Class:", options=list(st.session_state['db_classes'].keys()))
+            # Xem danh sách học sinh
+            st.markdown("---")
+            if db_classes:
+                view_class = st.selectbox("View Students in Class:", options=[c['class_code'] for c in db_classes], format_func=lambda x: next(c['class_name'] for c in db_classes if c['class_code'] == x))
                 if view_class:
-                    students_list = st.session_state['db_students'][view_class]
-                    if students_list:
-                        # Hiển thị thẻ học sinh siêu đẹp
-                        st.write(f"**Total: {len(students_list)} students**")
-                        cols = st.columns(4) # Hiển thị 4 bé trên 1 hàng
-                        for i, student in enumerate(students_list):
+                    res_students = supabase.table("students").select("*").eq("class_code", view_class).execute()
+                    if res_students.data:
+                        st.write(f"**Total: {len(res_students.data)} students**")
+                        cols = st.columns(4)
+                        for i, student in enumerate(res_students.data):
                             with cols[i % 4]:
                                 avt_src = f"data:image/jpeg;base64,{student['avatar']}" if student['avatar'] else "https://cdn-icons-png.flaticon.com/512/149/149071.png"
                                 st.markdown(f"""
-                                    <div style="text-align: center; background: rgba(255,255,255,0.7); padding: 15px; border-radius: 15px; margin-bottom: 10px;">
-                                        <img src="{avt_src}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid #6c5ce7;">
-                                        <p style="font-weight: bold; margin-top: 10px; margin-bottom: 0; color: #2d3436;">{student['name']}</p>
+                                    <div style="text-align: center; background: rgba(255,255,255,0.8); padding: 15px; border-radius: 15px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 2px solid transparent;">
+                                        <img src="{avt_src}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid #6c5ce7; padding: 2px;">
+                                        <p style="font-weight: bold; margin-top: 10px; margin-bottom: 0; color: #2d3436; font-size: 16px;">{student['student_name']}</p>
                                     </div>
                                 """, unsafe_allow_html=True)
                     else:
                         st.info("No students in this class yet.")
+
+# ================= 7. GÓC QUẢN TRỊ VIÊN (ADMIN PORTAL) =================
+elif st.session_state['role'] == 'admin':
+    if 'is_admin_logged_in' not in st.session_state:
+        st.session_state['is_admin_logged_in'] = False
+        
+    if not st.session_state['is_admin_logged_in']:
+        st.markdown("### 🛡️ System Administrator")
+        u_admin = st.text_input("Admin ID:")
+        p_admin = st.text_input("Password:", type="password")
+        if st.button("🔓 Login", type="primary"):
+            if u_admin == "admin" and p_admin == "123456": # Mật khẩu trung tâm
+                st.session_state['is_admin_logged_in'] = True
+                st.rerun()
+            else:
+                st.error("❌ Access Denied!")
+    else:
+        c_title, c_btn = st.columns([4, 1])
+        with c_title:
+            st.success("✨ Welcome to Central Management!")
+        with c_btn:
+            if st.button("🔒 Logout"):
+                st.session_state['is_admin_logged_in'] = False
+                st.rerun()
+            
+        tab_tch, tab_cls = st.tabs(["👨‍🏫 Manage Teachers", "🏫 Manage Classes"])
+        
+        # QUẢN LÝ GIÁO VIÊN
+        with tab_tch:
+            st.markdown("**Create Teacher Accounts**")
+            with st.form("add_teacher", clear_on_submit=True):
+                t_name = st.text_input("Teacher's Full Name:")
+                t_user = st.text_input("Username (Login ID):").strip()
+                t_pass = st.text_input("Password:", type="password")
+                if st.form_submit_button("➕ CREATE ACCOUNT", type="primary"):
+                    if t_user and t_pass:
+                        try:
+                            supabase.table("teachers").insert({"username": t_user, "password": t_pass, "full_name": t_name}).execute()
+                            st.success(f"✅ Account '{t_user}' created for {t_name}!")
+                        except Exception as e:
+                            st.error(f"❌ Error (Username may already exist): {e}")
+                    else:
+                        st.warning("Please fill all fields.")
+                            
+        # QUẢN LÝ MÃ LỚP TRUNG TÂM
+        with tab_cls:
+            st.markdown("**Create Official Classes**")
+            with st.form("add_class_admin", clear_on_submit=True):
+                c_code = st.text_input("Class Code (e.g., ENG101):").strip().upper()
+                c_name = st.text_input("Class Name (e.g., Movers 1):").strip()
+                if st.form_submit_button("➕ ADD CLASS", type="primary"):
+                    if c_code and c_name:
+                        try:
+                            supabase.table("classes").insert({"class_code": c_code, "class_name": c_name}).execute()
+                            st.success(f"✅ Class {c_name} ({c_code}) added to Database successfully!")
+                        except Exception as e:
+                            st.error(f"❌ Error adding class: {e}")
+                    else:
+                        st.error("⚠️ Please enter both Code and Name.")
