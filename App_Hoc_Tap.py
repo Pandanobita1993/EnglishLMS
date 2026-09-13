@@ -668,12 +668,12 @@ elif st.session_state['role'] == 'teacher':
         u_tch = st.text_input("Username:")
         p_tch = st.text_input("Password:", type="password")
         
-        if st.button("🔓 Login", type="primary"):
-            # Tra cứu tài khoản từ Database Supabase
+       if st.button("🔓 Login", type="primary"):
             res = supabase.table("teachers").select("*").eq("username", u_tch).eq("password", p_tch).execute()
             if res.data:
                 st.session_state['is_teacher_logged_in'] = True
                 st.session_state['current_teacher'] = res.data[0]['full_name']
+                st.session_state['current_teacher_username'] = res.data[0]['username'] # Lưu lại ID để lọc danh sách
                 st.rerun()
             else:
                 st.error("❌ Invalid username or password. Please contact Admin.")
