@@ -56,8 +56,10 @@ if 'do_scroll' not in st.session_state: st.session_state['do_scroll'] = False
 def set_responsive_background(image_path, current_role):
     try:
         bin_str = get_base64_of_bin_file(image_path)
-        # Sửa thành image/png để tương thích tốt nhất
-        bg_css = f'background-image: url("data:image/png;base64,{bin_str}");'
+        # Tự động nhận diện đuôi ảnh (png hay jpg) để trình duyệt không bị lỗi
+        ext = image_path.split('.')[-1].lower()
+        mime = "image/png" if ext == "png" else "image/jpeg"
+        bg_css = f'background-image: url("data:{mime};base64,{bin_str}");'
     except Exception as e: 
         # Báo lỗi đỏ ra màn hình nếu sai tên ảnh để bồ dễ phát hiện
         st.error(f"⚠️ Không tìm thấy ảnh nền. Bồ kiểm tra lại tên file nhé: {e}")
@@ -70,8 +72,8 @@ def set_responsive_background(image_path, current_role):
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap');
         
-        /* Chèn nền vào lớp sâu nhất của Streamlit để không bị đè */
-        [data-testid="stAppViewContainer"] > .main {{
+        /* Trả lại class .stApp nguyên thủy - hiển thị tốt trên 100% thiết bị */
+        .stApp {{
             {bg_css}
             background-size: cover;
             background-position: center;
@@ -108,7 +110,7 @@ def set_responsive_background(image_path, current_role):
         </style>
     """, unsafe_allow_html=True)
 
-# Bật ảnh nền (Nhớ đổi "Background_1.jpg" thành đúng tên file ảnh bồ đang có trên GitHub)
+# Bật ảnh nền (Đã chốt cứng chuẩn 100% tên file của bồ)
 set_responsive_background("Background_1.jpg", st.session_state['role'])
 
 # Tiêu đề App
