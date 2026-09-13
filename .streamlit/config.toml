@@ -1,0 +1,4 @@
+Ini, TOML
+[theme]
+base="light"
+primaryColor="#0984e3"
