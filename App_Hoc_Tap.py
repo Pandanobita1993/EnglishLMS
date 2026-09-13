@@ -63,7 +63,7 @@ def set_responsive_background(image_path, current_role):
         st.error(f"⚠️ Không tìm thấy ảnh nền. Bồ kiểm tra lại tên file nhé: {e}")
         bg_css = 'background-color: #f5f6fa;'
     
-    # Độ trong suốt: Home 15%, Các trang khác 85% (Trắng đục hơn xíu để dễ đọc chữ)
+    # Độ trong suốt: Home 15%, Các trang khác 85%
     bg_opacity = "rgba(255, 255, 255, 0.15)" if current_role is None else "rgba(255, 255, 255, 0.85)"
 
     st.markdown(f"""
@@ -77,7 +77,7 @@ def set_responsive_background(image_path, current_role):
             background-attachment: fixed;
         }}
         
-        /* GỌI TẤT CẢ CÁC TÊN CỦA KHUNG CHỨA (Chống lỗi phiên bản Streamlit) */
+        /* GỌI TẤT CẢ CÁC TÊN CỦA KHUNG CHỨA */
         .block-container, 
         [data-testid="stAppViewBlockContainer"], 
         [data-testid="stMainBlockContainer"] {{
@@ -102,6 +102,14 @@ def set_responsive_background(image_path, current_role):
             color: transparent !important; background: linear-gradient(90deg, #ff6b6b, #feca57, #48dbfb);
             -webkit-background-clip: text; text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
             font-weight: 900 !important; font-family: 'Nunito', sans-serif !important;
+        }}
+        
+        /* 🔥 XÓA PHÔNG ĐEN CỦA ẢNH ĐỘNG & MENU TRONG DARK MODE 🔥 */
+        iframe {{
+            background-color: transparent !important;
+        }}
+        [data-testid="stFrame"] {{
+            background-color: transparent !important;
         }}
         </style>
     """, unsafe_allow_html=True)
