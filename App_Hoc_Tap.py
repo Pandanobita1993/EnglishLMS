@@ -124,8 +124,12 @@ if 'current_teacher' not in st.session_state:
     st.session_state['current_teacher'] = None
 if 'current_teacher_username' not in st.session_state:
     st.session_state['current_teacher_username'] = None
+    
+# Cờ hiệu (Flag) để kích hoạt lệnh cuộn trang
+if 'do_scroll' not in st.session_state:
+    st.session_state['do_scroll'] = False
 
-# ================= 3. THANH ĐIỀU HƯỚNG SIÊU TỐC (NATIVE FAST MENU) =================
+# ================= 3. THANH ĐIỀU HƯỚNG SIÊU TỐC & LOGIC NỀN/CUỘN =================
 st.markdown("<br>", unsafe_allow_html=True)
 c1, c2, c3, c4 = st.columns(4)
 
@@ -134,6 +138,7 @@ btn_student = "primary" if st.session_state['role'] == 'student' else "secondary
 btn_teacher = "primary" if st.session_state['role'] == 'teacher' else "secondary"
 btn_admin = "primary" if st.session_state['role'] == 'admin' else "secondary"
 
+# Khi bấm tab: Đổi role và Bật cờ cuộn trang (do_scroll = True)
 with c1:
     if st.button("🏠 Home", type=btn_home, use_container_width=True):
         st.session_state['role'] = None
@@ -141,16 +146,58 @@ with c1:
 with c2:
     if st.button("🎒 Student", type=btn_student, use_container_width=True):
         st.session_state['role'] = 'student'
+        st.session_state['do_scroll'] = True
         st.rerun()
 with c3:
     if st.button("👨‍🏫 Teacher", type=btn_teacher, use_container_width=True):
         st.session_state['role'] = 'teacher'
+        st.session_state['do_scroll'] = True
         st.rerun()
 with c4:
     if st.button("🛡️ Admin", type=btn_admin, use_container_width=True):
         st.session_state['role'] = 'admin'
+        st.session_state['do_scroll'] = True
         st.rerun()
+        
 st.markdown("---")
+
+# Mỏ neo (Anchor) để đánh dấu vị trí cần cuộn tới
+st.markdown("<div id='portal_content'></div>", unsafe_allow_html=True)
+
+# THIẾT LẬP ĐỘ TRONG SUỐT ĐỘNG
+if st.session_state['role'] is None:
+    # Ở Home: Lớp kính trong suốt 20% (Khoe trọn hình nền)
+    bg_opacity = "rgba(255, 255, 255, 0.2)"
+else:
+    # Ở các trang khác: Lớp kính đục trắng 90% (Làm mờ nền, nổi bật chữ)
+    bg_opacity = "rgba(255, 255, 255, 0.90)"
+
+st.markdown(f"""
+    <style>
+    [data-testid="stAppViewBlockContainer"] {{
+        background: {bg_opacity} !important;
+    }}
+    /* Ép tất cả chữ viết thường thành màu đậm để dễ đọc trên mọi giao diện (Sáng/Tối) */
+    p, span, label {{
+        color: #2d3436;
+        font-weight: 600;
+    }}
+    </style>
+""", unsafe_allow_html=True)
+
+# THỰC THI JAVASCRIPT CUỘN TRANG
+if st.session_state['do_scroll']:
+    # Nhúng đoạn mã JS ra lệnh cho trình duyệt cuộn mượt mà xuống mỏ neo
+    components.html("""
+        <script>
+            const target = window.parent.document.getElementById('portal_content');
+            if (target) {
+                target.scrollIntoView({behavior: 'smooth', block: 'start'});
+            }
+        </script>
+    """, height=0)
+    # Phải tắt cờ cuộn ngay lập tức để không bị giật trang khi làm bài tập
+    st.session_state['do_scroll'] = False
 
 # ================= 4. TRANG CHỦ (HOME) =================
 if st.session_state['role'] is None:
