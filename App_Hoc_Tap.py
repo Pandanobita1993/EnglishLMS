@@ -219,183 +219,196 @@ elif st.session_state['role'] == 'student':
         # ---------------------------------------------------------
         # EXERCISE 1: SPELLING (DRAG & DROP)
         # ---------------------------------------------------------
-        st.markdown("### 🧩 EXERCISE 1: WORD PUZZLE")
-        st.info("Drag the letters into the correct order to spell an animal! 🐶")
+        @st.fragment
+        def run_exercise_1():
+            st.markdown("### 🧩 EXERCISE 1: WORD PUZZLE")
+            st.info("Drag the letters into the correct order to spell an animal! 🐶")
 
-        correct_word = "ELEPHANT"
-        if 'ex1_letters' not in st.session_state:
-            letters = []
-            counts = {}
-            for char in correct_word:
-                counts[char] = counts.get(char, 0) + 1
-                letters.append(char + "\u200b" * counts[char])
-            random.shuffle(letters)
-            st.session_state['ex1_letters'] = letters
+            correct_word = "ELEPHANT"
+            if 'ex1_letters' not in st.session_state:
+                letters = []
+                counts = {}
+                for char in correct_word:
+                    counts[char] = counts.get(char, 0) + 1
+                    letters.append(char + "\u200b" * counts[char])
+                random.shuffle(letters)
+                st.session_state['ex1_letters'] = letters
 
-        sorted_letters = sort_items(
-            st.session_state['ex1_letters'], 
-            direction="horizontal", 
-            key="word_puzzle_unique"
-        )
+            sorted_letters = sort_items(
+                st.session_state['ex1_letters'], 
+                direction="horizontal", 
+                key="word_puzzle_unique"
+            )
 
-        if st.button("✨ CHECK PUZZLE", use_container_width=True):
-            student_word = "".join([item[0] for item in sorted_letters])
-            if student_word == correct_word:
-                st.balloons()
-                st.success(f"🎉 Excellent! '{student_word}' is absolutely correct!")
-                if lottie_success: st_lottie(lottie_success, height=150, key="succ_1")
-            else:
-                st.error(f"❌ Not quite! You spelled '{student_word}'. Try again!")
-
+            if st.button("✨ CHECK PUZZLE", use_container_width=True):
+                student_word = "".join([item[0] for item in sorted_letters])
+                if student_word == correct_word:
+                    st.balloons()
+                    st.success(f"🎉 Excellent! '{student_word}' is absolutely correct!")
+                    if lottie_success: st_lottie(lottie_success, height=150, key="succ_1")
+                else:
+                    st.error(f"❌ Not quite! You spelled '{student_word}'. Try again!")
+        
+        # Gọi bài 1 ra chạy
+        run_exercise_1()
         st.markdown("---")
 
         # ---------------------------------------------------------
         # EXERCISE 2: FILL IN THE BLANK (TAP TO FILL)
         # ---------------------------------------------------------
-        st.markdown("### 📝 EXERCISE 2: FILL IN THE BLANK")
-        st.info("Tap the correct word below to fill in the blank! 🐶")
-        
-        base_question = "She went ___________ to buy a new dress yesterday."
-        correct_answer_ex2 = "shopping"
-        options_ex2 = ["shopping", "supermarket", "BigC"]
+        @st.fragment
+        def run_exercise_2():
+            st.markdown("### 📝 EXERCISE 2: FILL IN THE BLANK")
+            st.info("Tap the correct word below to fill in the blank! 🐶")
+            
+            base_question = "She went ___________ to buy a new dress yesterday."
+            correct_answer_ex2 = "shopping"
+            options_ex2 = ["shopping", "supermarket", "BigC"]
 
-        if 'ex2_selected' not in st.session_state:
-            st.session_state['ex2_selected'] = None
-            st.session_state['ex2_mistakes'] = 0
-            st.session_state['ex2_done'] = False
-            opts = options_ex2.copy()
-            random.shuffle(opts)
-            st.session_state['ex2_options'] = opts
+            if 'ex2_selected' not in st.session_state:
+                st.session_state['ex2_selected'] = None
+                st.session_state['ex2_mistakes'] = 0
+                st.session_state['ex2_done'] = False
+                opts = options_ex2.copy()
+                random.shuffle(opts)
+                st.session_state['ex2_options'] = opts
 
-        current_word = st.session_state['ex2_selected'] if st.session_state['ex2_selected'] else "..."
-        blank_color = "#0984e3" if st.session_state['ex2_selected'] else "#b2bec3"
-        
-        display_question = base_question.replace(
-            '___________', 
-            f'<span style="color: {blank_color}; border: 2px dashed {blank_color}; background: #fff; padding: 2px 12px; border-radius: 8px; font-weight: bold;">{current_word}</span>'
-        )
+            current_word = st.session_state['ex2_selected'] if st.session_state['ex2_selected'] else "..."
+            blank_color = "#0984e3" if st.session_state['ex2_selected'] else "#b2bec3"
+            
+            display_question = base_question.replace(
+                '___________', 
+                f'<span style="color: {blank_color}; border: 2px dashed {blank_color}; background: #fff; padding: 2px 12px; border-radius: 8px; font-weight: bold;">{current_word}</span>'
+            )
 
-        st.markdown(f"""
-            <div style="font-size: 18px; color: #2d3436; background: rgba(255,255,255,0.7); padding: 18px; border-radius: 12px; text-align: center; margin-bottom: 20px;">
-                {display_question}
-            </div>
-        """, unsafe_allow_html=True)
+            st.markdown(f"""
+                <div style="font-size: 18px; color: #2d3436; background: rgba(255,255,255,0.7); padding: 18px; border-radius: 12px; text-align: center; margin-bottom: 20px;">
+                    {display_question}
+                </div>
+            """, unsafe_allow_html=True)
 
-        if not st.session_state['ex2_done']:
-            cols = st.columns(len(options_ex2))
-            for i, opt in enumerate(st.session_state['ex2_options']):
-                with cols[i]:
-                    is_chosen = (st.session_state['ex2_selected'] == opt)
-                    btn_label = f"✨ [{opt}]" if is_chosen else f"📦 {opt}"
-                    if st.button(btn_label, use_container_width=True, key=f"ex2_btn_{i}"):
-                        st.session_state['ex2_selected'] = opt
-                        st.rerun()
+            if not st.session_state['ex2_done']:
+                cols = st.columns(len(options_ex2))
+                for i, opt in enumerate(st.session_state['ex2_options']):
+                    with cols[i]:
+                        is_chosen = (st.session_state['ex2_selected'] == opt)
+                        btn_label = f"✨ [{opt}]" if is_chosen else f"📦 {opt}"
+                        if st.button(btn_label, use_container_width=True, key=f"ex2_btn_{i}"):
+                            st.session_state['ex2_selected'] = opt
+                            st.rerun() # Bây giờ st.rerun() chỉ load đúng cái ô bài tập 2 này, không load lại cả web!
 
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("🚀 SUBMIT ANSWER", use_container_width=True, type="primary"):
-                if not st.session_state['ex2_selected']:
-                    st.warning("⚠️ Please select a word first!")
-                else:
-                    if st.session_state['ex2_selected'] == correct_answer_ex2:
-                        st.balloons()
-                        st.session_state['ex2_done'] = True
-                        mistakes = st.session_state['ex2_mistakes']
-                        if mistakes == 0:
-                            st.success(f"🎉 Perfect! You got it right on the first try!")
-                        else:
-                            st.success(f"👏 Good job! You found the answer after {mistakes} incorrect attempts.")
-                        st.rerun()
+                st.markdown("<br>", unsafe_allow_html=True)
+                if st.button("🚀 SUBMIT ANSWER", use_container_width=True, type="primary"):
+                    if not st.session_state['ex2_selected']:
+                        st.warning("⚠️ Please select a word first!")
                     else:
-                        st.session_state['ex2_mistakes'] += 1
-                        st.error(f"❌ Oops, '{st.session_state['ex2_selected']}' is incorrect. (Mistakes: {st.session_state['ex2_mistakes']})")
-        else:
-            st.success(f"✅ Completed! Correct answer: **{correct_answer_ex2}** (Mistakes made: {st.session_state['ex2_mistakes']})")
+                        if st.session_state['ex2_selected'] == correct_answer_ex2:
+                            st.balloons()
+                            st.session_state['ex2_done'] = True
+                            mistakes = st.session_state['ex2_mistakes']
+                            if mistakes == 0:
+                                st.success(f"🎉 Perfect! You got it right on the first try!")
+                            else:
+                                st.success(f"👏 Good job! You found the answer after {mistakes} incorrect attempts.")
+                            st.rerun()
+                        else:
+                            st.session_state['ex2_mistakes'] += 1
+                            st.error(f"❌ Oops, '{st.session_state['ex2_selected']}' is incorrect. (Mistakes: {st.session_state['ex2_mistakes']})")
+            else:
+                st.success(f"✅ Completed! Correct answer: **{correct_answer_ex2}** (Mistakes made: {st.session_state['ex2_mistakes']})")
 
+        # Gọi bài 2 ra chạy
+        run_exercise_2()
         st.markdown("---")
 
         # ---------------------------------------------------------
         # EXERCISE 3: MATCHING (TAP TO CONNECT)
         # ---------------------------------------------------------
-        st.markdown("### 🔗 EXERCISE 3: MATCHING")
-        st.info("Tap an item in COLUMN A, then tap its match in COLUMN B. 🐶")
+        @st.fragment
+        def run_exercise_3():
+            st.markdown("### 🔗 EXERCISE 3: MATCHING")
+            st.info("Tap an item in COLUMN A, then tap its match in COLUMN B. 🐶")
 
-        matching_pairs = {
-            "How are you?": "I'm fine, thanks.",
-            "What's your name?": "My name is Nu.",
-            "How old are you?": "I'm 8 years old."
-        }
+            matching_pairs = {
+                "How are you?": "I'm fine, thanks.",
+                "What's your name?": "My name is Nu.",
+                "How old are you?": "I'm 8 years old."
+            }
 
-        if 'ex3_lefts' not in st.session_state:
-            lefts = list(matching_pairs.keys())
-            rights = list(matching_pairs.values())
-            random.shuffle(lefts)
-            random.shuffle(rights)
-            st.session_state['ex3_lefts'] = lefts
-            st.session_state['ex3_rights'] = rights
-            st.session_state['ex3_sel_left'] = None
-            st.session_state['ex3_sel_right'] = None
-            st.session_state['ex3_completed'] = []
-            st.session_state['ex3_mistakes'] = 0
+            if 'ex3_lefts' not in st.session_state:
+                lefts = list(matching_pairs.keys())
+                rights = list(matching_pairs.values())
+                random.shuffle(lefts)
+                random.shuffle(rights)
+                st.session_state['ex3_lefts'] = lefts
+                st.session_state['ex3_rights'] = rights
+                st.session_state['ex3_sel_left'] = None
+                st.session_state['ex3_sel_right'] = None
+                st.session_state['ex3_completed'] = []
+                st.session_state['ex3_mistakes'] = 0
 
-        if st.session_state['ex3_sel_left'] and st.session_state['ex3_sel_right']:
-            l_val = st.session_state['ex3_sel_left']
-            r_val = st.session_state['ex3_sel_right']
-            
-            if matching_pairs[l_val] == r_val:
-                st.session_state['ex3_completed'].append(l_val)
-                st.toast("🎉 Correct Match!", icon="✅")
-            else:
-                st.session_state['ex3_mistakes'] += 1
-                st.toast(f"❌ Incorrect! (Mistakes: {st.session_state['ex3_mistakes']})", icon="🚨")
-            
-            st.session_state['ex3_sel_left'] = None
-            st.session_state['ex3_sel_right'] = None
-            st.rerun()
-
-        col_a, col_b = st.columns(2)
-
-        with col_a:
-            st.markdown("<h5 style='text-align: center; color: #d63031;'>🔹 COLUMN A</h5>", unsafe_allow_html=True)
-            for item in st.session_state['ex3_lefts']:
-                is_done = item in st.session_state['ex3_completed']
-                is_sel = item == st.session_state['ex3_sel_left']
+            if st.session_state['ex3_sel_left'] and st.session_state['ex3_sel_right']:
+                l_val = st.session_state['ex3_sel_left']
+                r_val = st.session_state['ex3_sel_right']
                 
-                if is_done:
-                    st.button(f"✅ {item}", key=f"L_{item}", disabled=True, use_container_width=True)
-                elif is_sel:
-                    if st.button(f"🟡 {item}", key=f"L_{item}", type="primary", use_container_width=True):
-                        st.session_state['ex3_sel_left'] = None 
-                        st.rerun()
+                if matching_pairs[l_val] == r_val:
+                    st.session_state['ex3_completed'].append(l_val)
+                    st.toast("🎉 Correct Match!", icon="✅")
                 else:
-                    if st.button(f"🟦 {item}", key=f"L_{item}", use_container_width=True):
-                        st.session_state['ex3_sel_left'] = item
-                        st.rerun()
+                    st.session_state['ex3_mistakes'] += 1
+                    st.toast(f"❌ Incorrect! (Mistakes: {st.session_state['ex3_mistakes']})", icon="🚨")
+                
+                st.session_state['ex3_sel_left'] = None
+                st.session_state['ex3_sel_right'] = None
+                st.rerun()
 
-        with col_b:
-            st.markdown("<h5 style='text-align: center; color: #0984e3;'>🔸 COLUMN B</h5>", unsafe_allow_html=True)
-            for item in st.session_state['ex3_rights']:
-                parent_key = [k for k, v in matching_pairs.items() if v == item][0]
-                is_done = parent_key in st.session_state['ex3_completed']
-                is_sel = item == st.session_state['ex3_sel_right']
+            col_a, col_b = st.columns(2)
 
-                if is_done:
-                    st.button(f"✅ {item}", key=f"R_{item}", disabled=True, use_container_width=True)
-                elif is_sel:
-                    if st.button(f"🟡 {item}", key=f"R_{item}", type="primary", use_container_width=True):
-                        st.session_state['ex3_sel_right'] = None
-                        st.rerun()
+            with col_a:
+                st.markdown("<h5 style='text-align: center; color: #d63031;'>🔹 COLUMN A</h5>", unsafe_allow_html=True)
+                for item in st.session_state['ex3_lefts']:
+                    is_done = item in st.session_state['ex3_completed']
+                    is_sel = item == st.session_state['ex3_sel_left']
+                    
+                    if is_done:
+                        st.button(f"✅ {item}", key=f"L_{item}", disabled=True, use_container_width=True)
+                    elif is_sel:
+                        if st.button(f"🟡 {item}", key=f"L_{item}", type="primary", use_container_width=True):
+                            st.session_state['ex3_sel_left'] = None 
+                            st.rerun()
+                    else:
+                        if st.button(f"🟦 {item}", key=f"L_{item}", use_container_width=True):
+                            st.session_state['ex3_sel_left'] = item
+                            st.rerun()
+
+            with col_b:
+                st.markdown("<h5 style='text-align: center; color: #0984e3;'>🔸 COLUMN B</h5>", unsafe_allow_html=True)
+                for item in st.session_state['ex3_rights']:
+                    parent_key = [k for k, v in matching_pairs.items() if v == item][0]
+                    is_done = parent_key in st.session_state['ex3_completed']
+                    is_sel = item == st.session_state['ex3_sel_right']
+
+                    if is_done:
+                        st.button(f"✅ {item}", key=f"R_{item}", disabled=True, use_container_width=True)
+                    elif is_sel:
+                        if st.button(f"🟡 {item}", key=f"R_{item}", type="primary", use_container_width=True):
+                            st.session_state['ex3_sel_right'] = None
+                            st.rerun()
+                    else:
+                        if st.button(f"🟧 {item}", key=f"R_{item}", use_container_width=True):
+                            st.session_state['ex3_sel_right'] = item
+                            st.rerun()
+
+            if len(st.session_state['ex3_completed']) == len(matching_pairs):
+                st.balloons()
+                if st.session_state['ex3_mistakes'] == 0:
+                    st.success("🎉 Awesome! You matched everything perfectly with 0 mistakes!")
+                    if lottie_success: st_lottie(lottie_success, height=200, key="succ_3")
                 else:
-                    if st.button(f"🟧 {item}", key=f"R_{item}", use_container_width=True):
-                        st.session_state['ex3_sel_right'] = item
-                        st.rerun()
+                    st.success(f"👏 Good effort! You finished the exercise with {st.session_state['ex3_mistakes']} incorrect attempts.")
 
-        if len(st.session_state['ex3_completed']) == len(matching_pairs):
-            st.balloons()
-            if st.session_state['ex3_mistakes'] == 0:
-                st.success("🎉 Awesome! You matched everything perfectly with 0 mistakes!")
-                if lottie_success: st_lottie(lottie_success, height=200, key="succ_3")
-            else:
-                st.success(f"👏 Good effort! You finished the exercise with {st.session_state['ex3_mistakes']} incorrect attempts.")
+        # Gọi bài 3 ra chạy
+        run_exercise_3()
 
         # ---------------------------------------------------------
         # EXERCISE 4: WORD SEARCH & DRAG (MINI GAME NÚT CHẠM)
