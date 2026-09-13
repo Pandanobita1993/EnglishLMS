@@ -118,6 +118,10 @@ if 'role' not in st.session_state:
     st.session_state['role'] = None  
 if 'is_teacher_logged_in' not in st.session_state:
     st.session_state['is_teacher_logged_in'] = False
+if 'current_teacher' not in st.session_state:
+    st.session_state['current_teacher'] = None
+if 'current_teacher_username' not in st.session_state:
+    st.session_state['current_teacher_username'] = None
 
 # ================= 3. THANH ĐIỀU HƯỚNG SIÊU TỐC (NATIVE FAST MENU) =================
 st.markdown("<br>", unsafe_allow_html=True)
