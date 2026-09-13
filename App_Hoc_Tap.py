@@ -64,7 +64,7 @@ def set_responsive_background(image_path, current_role):
         bg_css = 'background-color: #f5f6fa;'
     
     # Độ trong suốt: Home 15%, Các trang khác 85%
-    bg_opacity = "rgba(255, 255, 255, 0.15)" if current_role is None else "rgba(255, 255, 255, 0.85)"
+    bg_opacity = "rgba(255, 255, 255, 0.15)" if current_role is None else "rgba(255, 255, 255, 0.65)"
 
     st.markdown(f"""
         <style>
