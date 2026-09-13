@@ -667,8 +667,7 @@ elif st.session_state['role'] == 'teacher':
         st.markdown("### 👨‍🏫 Teacher Login")
         u_tch = st.text_input("Username:")
         p_tch = st.text_input("Password:", type="password")
-        
-       if st.button("🔓 Login", type="primary"):
+        if st.button("🔓 Login", type="primary"):
             res = supabase.table("teachers").select("*").eq("username", u_tch).eq("password", p_tch).execute()
             if res.data:
                 st.session_state['is_teacher_logged_in'] = True
