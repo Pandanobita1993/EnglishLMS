@@ -91,8 +91,44 @@ def set_responsive_background(image_path, current_role):
     """, unsafe_allow_html=True)
 
 # Gọi hàm CSS và truyền trạng thái Role hiện tại vào
-set_responsive_background("Background_1.jpg", st.session_state['role'])
-st.markdown("<h1 style='text-align: center;'>🌟 CAMBRIDGE KIDS LMS 🌟</h1>", unsafe_allow_html=True)
+def set_responsive_background(image_path, current_role):
+    try:
+        bin_str = get_base64_of_bin_file(image_path)
+        bg_css = f'background-image: url("data:image/jpeg;base64,{bin_str}");'
+    except: bg_css = 'background-color: #f5f6fa;'
+    
+    # Đổi 0.95 thành 0.75 để nền trong hơn. Ở Home giữ mức 0.15.
+    bg_opacity = "rgba(255, 255, 255, 0.15)" if current_role is None else "rgba(255, 255, 255, 0.75)"
+
+    st.markdown(f"""
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap');
+        .stApp {{ {bg_css} background-size: cover; background-position: center; background-attachment: fixed; }}
+        
+        /* Chốt cứng khung nền & Thêm hiệu ứng kính mờ (blur) */
+        .block-container {{
+            background: {bg_opacity} !important;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2rem !important;
+            margin-top: 1rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: background 0.3s ease-in-out;
+        }}
+
+        /* Ép chữ đậm chống Dark Mode */
+        .block-container p, .block-container span, .block-container label, div[data-baseweb="select"] {{
+            color: #2d3436 !important; font-family: 'Nunito', sans-serif !important; font-weight: 700;
+        }}
+        
+        h1, h2, h3, h4, h5 {{ 
+            color: transparent !important; background: linear-gradient(90deg, #ff6b6b, #feca57, #48dbfb);
+            -webkit-background-clip: text; text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+            font-weight: 900 !important; font-family: 'Nunito', sans-serif !important;
+        }}
+        </style>
+    """, unsafe_allow_html=True)
 
 # ================= 3. THANH ĐIỀU HƯỚNG RESPONSIVE (OPTION MENU) =================
 nav_options = ["Home", "Student", "Teacher", "Admin"]
