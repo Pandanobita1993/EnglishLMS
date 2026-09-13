@@ -31,172 +31,102 @@ supabase = init_connection()
 # ================= 1. SYSTEM & UI CONFIGURATION =================
 st.set_page_config(page_title="Smart English Class", page_icon="🏫", layout="centered")
 
-# LÁ BÙA 1: Lưu Lottie vào bộ nhớ đệm
 @st.cache_data 
 def load_lottieurl(url: str):
     try:
         r = requests.get(url)
-        if r.status_code != 200:
-            return None
-        return r.json()
-    except:
-        return None
+        return r.json() if r.status_code == 200 else None
+    except: return None
 
-# LÁ BÙA 2: Lưu ảnh nền vào bộ nhớ đệm
 @st.cache_data 
 def get_base64_of_bin_file(bin_file):
-    with open(bin_file, 'rb') as f:
-        data = f.read()
-    return base64.b64encode(data).decode()
+    with open(bin_file, 'rb') as f: return base64.b64encode(f.read()).decode()
 
-# Load sẵn Animation
-lottie_hello = load_lottieurl("https://assets3.lottiefiles.com/packages/lf20_M9p23l.json") # Chó vẫy đuôi
-lottie_success = load_lottieurl("https://assets10.lottiefiles.com/packages/lf20_a2chheio.json") # Pháo hoa/Cúp
+lottie_hello = load_lottieurl("https://assets3.lottiefiles.com/packages/lf20_M9p23l.json")
+lottie_success = load_lottieurl("https://assets10.lottiefiles.com/packages/lf20_a2chheio.json")
 
-def set_kids_background(image_path):
+# ================= 2. SESSION STATE & ROUTING =================
+if 'role' not in st.session_state: st.session_state['role'] = None  
+if 'is_teacher_logged_in' not in st.session_state: st.session_state['is_teacher_logged_in'] = False
+if 'current_teacher' not in st.session_state: st.session_state['current_teacher'] = None
+if 'current_teacher_username' not in st.session_state: st.session_state['current_teacher_username'] = None
+if 'do_scroll' not in st.session_state: st.session_state['do_scroll'] = False
+
+# HÀM CSS RESPONSIVE & ANTI-DARK MODE
+def set_responsive_background(image_path, current_role):
     try:
         bin_str = get_base64_of_bin_file(image_path)
         bg_css = f'background-image: url("data:image/jpeg;base64,{bin_str}");'
-    except FileNotFoundError:
-        bg_css = 'background-color: #f5f6fa;' # Màu nền mặc định nếu thiếu ảnh
+    except: bg_css = 'background-color: #f5f6fa;'
+    
+    # Ở Home trong suốt 15%, vào trong đục 95%
+    bg_opacity = "rgba(255, 255, 255, 0.15)" if current_role is None else "rgba(255, 255, 255, 0.95)"
 
     st.markdown(f"""
         <style>
-        /* Import Font chữ tròn trịa */
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap');
+        .stApp {{ {bg_css} background-size: cover; background-position: center; background-attachment: fixed; }}
+        
+        /* Chốt cứng khung nền để không bị vỡ trên Mobile */
+        .block-container {{
+            background: {bg_opacity} !important;
+            border-radius: 20px;
+            padding: 2rem !important;
+            margin-top: 1rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: background 0.3s ease-in-out;
+        }}
 
-        .stApp {{
-            {bg_css}
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
-            font-family: 'Nunito', sans-serif;
+        /* Ép chữ đậm chống Dark Mode */
+        .block-container p, .block-container span, .block-container label, div[data-baseweb="select"] {{
+            color: #2d3436 !important; font-family: 'Nunito', sans-serif !important; font-weight: 700;
         }}
         
-        /* Hiệu ứng kính mờ (Glassmorphism) */
-        [data-testid="stAppViewBlockContainer"] {{
-            background: rgba(255, 255, 255, 0.85) !important;
-            backdrop-filter: blur(16px) saturate(180%);
-            -webkit-backdrop-filter: blur(16px) saturate(180%);
-            border-radius: 24px;
-            padding: 40px 50px;
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
-            border: 2px solid rgba(255, 255, 255, 0.6);
-            margin-top: 10px;
-            margin-bottom: 30px;
-        }}
-
         h1, h2, h3, h4, h5 {{ 
-            color: transparent !important;
-            background: linear-gradient(90deg, #ff6b6b, #feca57, #48dbfb);
-            -webkit-background-clip: text;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.05);
-            font-weight: 900 !important;
-        }}
-
-        .stSelectbox label, .stMultiSelect label, .stFileUploader label, .stTextInput label {{
-            font-size: 16px; font-weight: 700; color: #34495e;
-        }}
-
-        /* Hiệu ứng Hover cho nút bấm */
-        .stButton > button {{
-            border-radius: 12px !important;
-            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
-            font-weight: bold !important;
-        }}
-        .stButton > button:hover {{
-            transform: translateY(-2px) scale(1.02);
-            box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+            color: transparent !important; background: linear-gradient(90deg, #ff6b6b, #feca57, #48dbfb);
+            -webkit-background-clip: text; text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+            font-weight: 900 !important; font-family: 'Nunito', sans-serif !important;
         }}
         </style>
     """, unsafe_allow_html=True)
 
-set_kids_background("Background_1.jpg")
-
+# Gọi hàm CSS và truyền trạng thái Role hiện tại vào
+set_responsive_background("Background_1.jpg", st.session_state['role'])
 st.markdown("<h1 style='text-align: center;'>🌟 CAMBRIDGE KIDS LMS 🌟</h1>", unsafe_allow_html=True)
 
-# ================= 2. SESSION STATE MANAGEMENT =================
-if 'role' not in st.session_state:
-    st.session_state['role'] = None  
-if 'is_teacher_logged_in' not in st.session_state:
-    st.session_state['is_teacher_logged_in'] = False
-if 'current_teacher' not in st.session_state:
-    st.session_state['current_teacher'] = None
-if 'current_teacher_username' not in st.session_state:
-    st.session_state['current_teacher_username'] = None
-    
-# Cờ hiệu (Flag) để kích hoạt lệnh cuộn trang
-if 'do_scroll' not in st.session_state:
-    st.session_state['do_scroll'] = False
+# ================= 3. THANH ĐIỀU HƯỚNG RESPONSIVE (OPTION MENU) =================
+nav_options = ["Home", "Student", "Teacher", "Admin"]
+idx_map = {None: 0, 'student': 1, 'teacher': 2, 'admin': 3}
 
-# ================= 3. THANH ĐIỀU HƯỚNG SIÊU TỐC & LOGIC NỀN/CUỘN =================
-st.markdown("<br>", unsafe_allow_html=True)
-c1, c2, c3, c4 = st.columns(4)
+selected_nav = option_menu(
+    menu_title=None, options=nav_options,
+    icons=["house-fill", "backpack-fill", "person-workspace", "shield-lock-fill"],
+    menu_icon="cast", default_index=idx_map[st.session_state['role']], orientation="horizontal",
+    styles={
+        "container": {"padding": "5px!important", "background-color": "rgba(255,255,255,0.9)", "border-radius": "15px"},
+        "icon": {"color": "#ff6b6b", "font-size": "18px"}, 
+        "nav-link": {"font-size": "14px", "text-align": "center", "margin":"0px", "color": "#2d3436", "font-weight": "bold"},
+        "nav-link-selected": {"background-color": "#0984e3", "color": "white"},
+    }
+)
 
-btn_home = "primary" if st.session_state['role'] is None else "secondary"
-btn_student = "primary" if st.session_state['role'] == 'student' else "secondary"
-btn_teacher = "primary" if st.session_state['role'] == 'teacher' else "secondary"
-btn_admin = "primary" if st.session_state['role'] == 'admin' else "secondary"
+if selected_nav == "Home" and st.session_state['role'] is not None:
+    st.session_state['role'] = None
+    st.rerun()
+elif selected_nav != "Home" and st.session_state['role'] != selected_nav.lower():
+    st.session_state['role'] = selected_nav.lower()
+    st.session_state['do_scroll'] = True
+    st.rerun()
 
-# Khi bấm tab: Đổi role và Bật cờ cuộn trang (do_scroll = True)
-with c1:
-    if st.button("🏠 Home", type=btn_home, use_container_width=True):
-        st.session_state['role'] = None
-        st.rerun()
-with c2:
-    if st.button("🎒 Student", type=btn_student, use_container_width=True):
-        st.session_state['role'] = 'student'
-        st.session_state['do_scroll'] = True
-        st.rerun()
-with c3:
-    if st.button("👨‍🏫 Teacher", type=btn_teacher, use_container_width=True):
-        st.session_state['role'] = 'teacher'
-        st.session_state['do_scroll'] = True
-        st.rerun()
-with c4:
-    if st.button("🛡️ Admin", type=btn_admin, use_container_width=True):
-        st.session_state['role'] = 'admin'
-        st.session_state['do_scroll'] = True
-        st.rerun()
-        
-st.markdown("---")
-
-# Mỏ neo (Anchor) để đánh dấu vị trí cần cuộn tới
+# Logic tự cuộn trang
 st.markdown("<div id='portal_content'></div>", unsafe_allow_html=True)
-
-# THIẾT LẬP ĐỘ TRONG SUỐT ĐỘNG
-if st.session_state['role'] is None:
-    # Ở Home: Lớp kính trong suốt 20% (Khoe trọn hình nền)
-    bg_opacity = "rgba(255, 255, 255, 0.2)"
-else:
-    # Ở các trang khác: Lớp kính đục trắng 90% (Làm mờ nền, nổi bật chữ)
-    bg_opacity = "rgba(255, 255, 255, 0.90)"
-
-st.markdown(f"""
-    <style>
-    [data-testid="stAppViewBlockContainer"] {{
-        background: {bg_opacity} !important;
-    }}
-    /* Ép tất cả chữ viết thường thành màu đậm để dễ đọc trên mọi giao diện (Sáng/Tối) */
-    p, span, label {{
-        color: #2d3436;
-        font-weight: 600;
-    }}
-    </style>
-""", unsafe_allow_html=True)
-
-# THỰC THI JAVASCRIPT CUỘN TRANG
 if st.session_state['do_scroll']:
-    # Nhúng đoạn mã JS ra lệnh cho trình duyệt cuộn mượt mà xuống mỏ neo
     components.html("""
         <script>
             const target = window.parent.document.getElementById('portal_content');
-            if (target) {
-                target.scrollIntoView({behavior: 'smooth', block: 'start'});
-            }
+            if (target) { target.scrollIntoView({behavior: 'smooth', block: 'start'}); }
         </script>
     """, height=0)
-    # Phải tắt cờ cuộn ngay lập tức để không bị giật trang khi làm bài tập
     st.session_state['do_scroll'] = False
 
 # ================= 4. TRANG CHỦ (HOME) =================
