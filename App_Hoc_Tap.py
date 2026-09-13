@@ -195,14 +195,15 @@ elif st.session_state['role'] == 'student':
                     student_info = next(item for item in students_in_class if item["student_name"] == selected_name)
                     avatar_src = f"data:image/jpeg;base64,{student_info['avatar']}" if student_info['avatar'] else "https://cdn-icons-png.flaticon.com/512/149/149071.png"
                     
-                    c1, c2 = st.columns([1, 4])
-                    with c1:
-                        # Hiển thị ảnh Avatar tròn xoe tuyệt đẹp bằng CSS
-                        st.markdown(f"""
-                            <img src="{avatar_src}" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 4px solid #0984e3; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
-                        """, unsafe_allow_html=True)
-                    with c2:
-                        st.success(f"🎉 Hello **{selected_name}**! Let's complete today's missions!")
+                    # Dùng Flexbox gộp chung Avatar và Bong bóng chat để căn giữa tuyệt đối
+                    st.markdown(f"""
+                        <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 10px;">
+                            <img src="{avatar_src}" style="width: 110px; height: 110px; border-radius: 50%; object-fit: cover; border: 4px solid #0984e3; box-shadow: 0 4px 10px rgba(0,0,0,0.15); flex-shrink: 0;">
+                            <div style="background-color: rgba(0, 184, 148, 0.15); border-left: 6px solid #00b894; padding: 18px 20px; border-radius: 12px; flex-grow: 1; color: #2d3436; font-size: 18px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                                🎉 Hello <strong style="color: #00b894; font-size: 20px;">{selected_name}</strong>! Let's complete today's missions!
+                            </div>
+                        </div>
+                    """, unsafe_allow_html=True)
                  
         st.markdown("---")
         
