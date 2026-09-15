@@ -227,7 +227,7 @@ elif st.session_state['role'] == 'student':
             st.markdown("👉 **How to play:** Tap the letters below to spell the correct word!")
             
             # Gợi ý tiếng Anh dành cho trẻ em
-            st.info("💡 **Hint:** I am a very big animal. I have big ears and a long nose! What am I?")
+            st.info("💡 **Hint:** I am a very big animal. I have big ears and a long trunk! What am I? 🐘")
 
             correct_word = "ELEPHANT"
             
@@ -241,7 +241,7 @@ elif st.session_state['role'] == 'student':
             pool = st.session_state['ex1_pool']
             answer = st.session_state['ex1_answer']
 
-            # 2. VẼ DÃY Ô TRỐNG (Đã sửa lỗi thụt đầu dòng Markdown)
+            # 2. VẼ DÃY Ô TRỐNG (Đã fix lỗi thụt lề Markdown)
             html_boxes = "<div style='display: flex; gap: 8px; justify-content: center; margin: 10px 0 20px 0; flex-wrap: wrap;'>"
             for i in range(len(correct_word)):
                 if i < len(answer):
@@ -251,27 +251,28 @@ elif st.session_state['role'] == 'student':
                     html_boxes += "<div style='width: 45px; height: 50px; border: 2px dashed #b2bec3; border-radius: 8px; background-color: rgba(255,255,255,0.5);'></div>"
             html_boxes += "</div>"
             
-            # Ra lệnh vẽ HTML
             st.markdown(html_boxes, unsafe_allow_html=True)
 
-            # 3. CỤM NÚT ĐIỀU KHIỂN
+            # 3. CỤM NÚT ĐIỀU KHIỂN (ĐÃ CẤP CHỨNG MINH NHÂN DÂN `key` ĐỂ CHỐNG LỖI)
             st.markdown("<br>", unsafe_allow_html=True)
             ctrl_col1, ctrl_col2, ctrl_col3, ctrl_col4 = st.columns([1, 2, 2, 1])
             with ctrl_col2:
-                if st.button("⌫ Delete", use_container_width=True, disabled=len(answer) == 0):
+                # Thêm key="btn_del_ex1"
+                if st.button("⌫ Delete", key="btn_del_ex1", use_container_width=True, disabled=len(answer) == 0):
                     last_item = answer.pop()
                     for p in pool:
                         if p['id'] == last_item['id']:
                             p['used'] = False
                     st.rerun()
             with ctrl_col3:
-                if st.button("↻ Reset", use_container_width=True, disabled=len(answer) == 0):
+                # Thêm key="btn_res_ex1"
+                if st.button("↻ Reset", key="btn_res_ex1", use_container_width=True, disabled=len(answer) == 0):
                     for p in pool:
                         p['used'] = False
                     answer.clear()
                     st.rerun()
 
-            # 4. KHO CHỮ CÁI ĐỂ BẤM (Bàn phím)
+            # 4. KHO CHỮ CÁI ĐỂ BẤM
             st.markdown("<br>", unsafe_allow_html=True)
             cols = st.columns(len(correct_word))
             for i, item in enumerate(pool):
@@ -296,11 +297,7 @@ elif st.session_state['role'] == 'student':
                 else:
                     st.error("❌ Not quite! Tap 'Delete' or 'Reset' to try again!")
 
-        # Gọi bài 1 ra chạy bằng Fragment
-        run_exercise_1()
-        st.markdown("---")
-
-        # Gọi bài 1 ra chạy bằng Fragment
+        # Gọi bài 1 ra chạy
         run_exercise_1()
         st.markdown("---")
 
