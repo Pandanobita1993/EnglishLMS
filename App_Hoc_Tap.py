@@ -226,41 +226,32 @@ elif st.session_state['role'] == 'student':
             # Dòng hướng dẫn thao tác cực kỳ dễ hiểu cho bé
             st.markdown("👉 **How to play:** Tap the letters below to spell the correct word!")
             
-            # Gợi ý tiếng Anh dành cho trẻ em (Dạng câu đố dễ thương)
-            st.info("💡 **Hint:** I am a very big animal. I have big ears and a long trunk! What am I? 🐘")
+            # Gợi ý tiếng Anh dành cho trẻ em
+            st.info("💡 **Hint:** I am a very big animal. I have big ears and a long nose! What am I?")
 
             correct_word = "ELEPHANT"
             
-            # 1. Khởi tạo kho dữ liệu chữ cái (chỉ chạy 1 lần)
+            # 1. Khởi tạo kho dữ liệu chữ cái
             if 'ex1_pool' not in st.session_state:
                 chars = list(correct_word)
                 random.shuffle(chars)
-                # Đánh ID cho từng chữ để phân biệt các chữ cái giống nhau (ví dụ 2 chữ E)
                 st.session_state['ex1_pool'] = [{'id': i, 'char': c, 'used': False} for i, c in enumerate(chars)]
-                st.session_state['ex1_answer'] = [] # Danh sách các chữ bé đã bấm
+                st.session_state['ex1_answer'] = []
 
             pool = st.session_state['ex1_pool']
             answer = st.session_state['ex1_answer']
 
-            # 2. VẼ DÃY Ô TRỐNG (Bằng CSS cho giống y hệt app xịn)
+            # 2. VẼ DÃY Ô TRỐNG (Đã sửa lỗi thụt đầu dòng Markdown)
             html_boxes = "<div style='display: flex; gap: 8px; justify-content: center; margin: 10px 0 20px 0; flex-wrap: wrap;'>"
             for i in range(len(correct_word)):
                 if i < len(answer):
-                    # Ô đã có chữ (viền xanh liền, nền xanh nhạt)
                     char = answer[i]['char']
-                    html_boxes += f"""
-                        <div style='width: 45px; height: 50px; border: 2px solid #0984e3; border-radius: 8px; 
-                        display: flex; align-items: center; justify-content: center; font-size: 22px; 
-                        font-weight: 900; background-color: #e3f2fd; color: #2d3436; box-shadow: 0 2px 5px rgba(0,0,0,0.1);'>
-                            {char}
-                        </div>
-                    """
+                    html_boxes += f"<div style='width: 45px; height: 50px; border: 2px solid #0984e3; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; background-color: #e3f2fd; color: #2d3436; box-shadow: 0 2px 5px rgba(0,0,0,0.1);'>{char}</div>"
                 else:
-                    # Ô trống (viền xám nét đứt)
-                    html_boxes += """
-                        <div style='width: 45px; height: 50px; border: 2px dashed #b2bec3; border-radius: 8px; background-color: rgba(255,255,255,0.5);'></div>
-                    """
+                    html_boxes += "<div style='width: 45px; height: 50px; border: 2px dashed #b2bec3; border-radius: 8px; background-color: rgba(255,255,255,0.5);'></div>"
             html_boxes += "</div>"
+            
+            # Ra lệnh vẽ HTML
             st.markdown(html_boxes, unsafe_allow_html=True)
 
             # 3. CỤM NÚT ĐIỀU KHIỂN
@@ -286,14 +277,12 @@ elif st.session_state['role'] == 'student':
             for i, item in enumerate(pool):
                 with cols[i]:
                     if not item['used']:
-                        # Nút chữ cái chưa bấm
                         if st.button(item['char'], key=f"btn_{item['id']}", use_container_width=True, type="primary"):
                             if len(answer) < len(correct_word):
                                 item['used'] = True
                                 answer.append(item)
                                 st.rerun()
                     else:
-                        # Nút đã bấm rồi thì bị mờ đi (disabled)
                         st.button(item['char'], key=f"btn_dis_{item['id']}", disabled=True, use_container_width=True)
 
             # 5. CHẤM ĐIỂM TỰ ĐỘNG
@@ -306,6 +295,10 @@ elif st.session_state['role'] == 'student':
                     if lottie_success: st_lottie(lottie_success, height=150, key="succ_1")
                 else:
                     st.error("❌ Not quite! Tap 'Delete' or 'Reset' to try again!")
+
+        # Gọi bài 1 ra chạy bằng Fragment
+        run_exercise_1()
+        st.markdown("---")
 
         # Gọi bài 1 ra chạy bằng Fragment
         run_exercise_1()
