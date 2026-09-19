@@ -17,6 +17,7 @@ import os
 import random
 import io
 import requests
+import supabase
 from supabase import create_client, Client
 
 # Khởi tạo kết nối (Cache_resource giúp kết nối chạy 1 lần duy nhất)
@@ -766,7 +767,83 @@ elif st.session_state['role'] == 'teacher':
 
         # --------- TAB 2: QUESTION BANK ---------
         with tab_bank:
-            st.info("Question Bank interface goes here (Keep your existing Excel import logic).")
+            st.markdown("#### 🏦 Import Questions from Excel")
+            st.info("💡 **Hướng dẫn:** File Excel tải lên cần có dòng tiêu đề: **Book, Unit, Topic, Type, Question, Answer, Options**")
+            
+            # 1. KHU VỰC TẢI FILE
+            uploaded_file = st.file_uploader("📥 Tải file Excel (.xlsx) lên đây", type=["xlsx"])
+            
+            if uploaded_file:
+                try:
+                    import pandas as pd
+                    # Đọc file Excel
+                    df = pd.read_excel(uploaded_file)
+                    df = df.dropna(how='all') # Bỏ các dòng trống
+                    
+                    st.write("👀 **Bản xem trước dữ liệu:**")
+                    st.dataframe(df.head(5), use_container_width=True) # Chỉ hiện 5 dòng đầu cho lẹ
+                    
+                    if st.button("🚀 UPLOAD TO DATABASE", type="primary", use_container_width=True):
+                        with st.spinner("Đang đẩy dữ liệu lên kho Supabase..."):
+                            success_count = 0
+                            # Vòng lặp chuyển từng dòng Excel lên Cloud
+                            for index, row in df.iterrows():
+                                try:
+                                    data_insert = {
+                                        "book": str(row.get('Book', '')).strip(),
+                                        "unit": str(row.get('Unit', '')).strip(),
+                                        "topic": str(row.get('Topic', '')).strip(),
+                                        "ex_type": str(row.get('Type', '')).strip(),
+                                        "question": str(row.get('Question', '')).strip(),
+                                        "answer": str(row.get('Answer', '')).strip(),
+                                        "options": str(row.get('Options', '')).strip() if pd.notna(row.get('Options')) else ""
+                                    }
+                                    # Lệnh bóp cò bắn dữ liệu
+                                    supabase.table("questions").insert(data_insert).execute()
+                                    success_count += 1
+                                except Exception as err:
+                                    st.error(f"⚠️ Lỗi ở dòng {index + 2}: {err}")
+                            
+                            st.success(f"🎉 Xuất sắc! Đã nạp thành công {success_count} câu hỏi vào kho!")
+                            st.balloons()
+                except Exception as e:
+                    st.error(f"❌ File Excel không hợp lệ. Lỗi: {e}")
+                    
+            st.markdown("---")
+            
+            # 2. KHU VỰC QUẢN LÝ KHO DỮ LIỆU CHÍNH THỨC
+            st.markdown("#### 📋 Question Library (Kho câu hỏi hiện tại trên Cloud)")
+            
+            # Bộ lọc để giáo viên tìm kiếm (Bây giờ có thêm lọc theo Topic)
+            col_loc1, col_loc2 = st.columns(2)
+            with col_loc1:
+                filter_book = st.selectbox("📚 Lọc theo Sách:", ["All", "Kid's Box 1", "Kid's Box 2", "Kid's Box 3"])
+            with col_loc2:
+                # Nút Refresh siêu tốc
+                if st.button("🔄 Làm mới danh sách", use_container_width=True):
+                    st.rerun()
+            
+            try:
+                # Đọc dữ liệu từ Supabase về
+                if filter_book == "All":
+                    res_q = supabase.table("questions").select("*").execute()
+                else:
+                    res_q = supabase.table("questions").select("*").eq("book", filter_book).execute()
+                    
+                db_questions = res_q.data
+                
+                if db_questions:
+                    # Đưa vào Pandas để hiển thị bảng thật đẹp
+                    df_view = pd.DataFrame(db_questions)
+                    # Sắp xếp lại cột cho dễ nhìn
+                    df_view = df_view[['id', 'book', 'unit', 'topic', 'ex_type', 'question', 'answer', 'options']]
+                    
+                    st.dataframe(df_view, use_container_width=True, hide_index=True)
+                    st.caption(f"📊 Tổng cộng: **{len(db_questions)}** câu hỏi trong kho.")
+                else:
+                    st.warning("📭 Kho dữ liệu đang trống. Hãy tải file Excel lên nhé!")
+            except Exception as e:
+                st.error("⚠️ Lỗi kết nối Supabase! Bồ kiểm tra lại xem đã tạo bảng 'questions' chưa nhé.")
 
        # --------- TAB 3: MANAGE STUDENTS ---------
         with tab_student:
