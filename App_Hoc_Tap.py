@@ -169,7 +169,10 @@ if st.session_state['role'] is None:
 st.markdown(f"<h1 style='text-align: center; font-size: 45px;'>🚀 WELCOME TO CAMBRIDGE KIDS</h1>", unsafe_allow_html=True)
 
 # --- KHUNG HIỂN THỊ AVATAR VÀ BONG BÓNG CHAT ---
-avatar_src = "https://cdn-icons-png.flaticon.com/512/3048/3048122.png" # Có thể thay bằng avatar lấy từ DB sau
+# Khai báo tên mặc định nếu học sinh chưa đăng nhập
+selected_name = st.session_state.get('student_name', 'Xu')
+
+avatar_src = "https://cdn-icons-png.flaticon.com/512/3048/3048122.png" 
 st.markdown(f"""
     <div class="chat-container" style="display: flex; align-items: center; gap: 20px; margin-bottom: 25px;">
         <img src="{avatar_src}" style="width: 110px; height: 110px; border-radius: 50%; object-fit: cover; border: 4px solid #0984e3; box-shadow: 0 4px 10px rgba(0,0,0,0.15); flex-shrink: 0;">
