@@ -211,13 +211,13 @@ elif st.session_state['role'] == 'student':
             </div>
             <div class="keyboard" id="keyboard"></div>
             <div id="msg"></div>
-    
+
             <script>
                 const targetWord = {js_word};
                 const initialChars = {js_chars};
                 let answer = [];
                 let keyStates = initialChars.map((c, i) => ({{ id: i, char: c, used: false }}));
-    
+
                 function render() {{
                     // Render Slots
                     const slotsEl = document.getElementById('slots');
@@ -249,7 +249,7 @@ elif st.session_state['role'] == 'student':
                         kbEl.appendChild(btn);
                     }});
                 }}
-    
+
                 function deleteLast() {{
                     if (answer.length > 0) {{
                         let last = answer.pop();
@@ -258,14 +258,14 @@ elif st.session_state['role'] == 'student':
                         render();
                     }}
                 }}
-    
+
                 function resetAll() {{
                     answer = [];
                     keyStates.forEach(k => k.used = false);
                     document.getElementById('msg').innerHTML = '';
                     render();
                 }}
-    
+
                 function checkWin() {{
                     if (answer.length === targetWord.length) {{
                         let currentStr = answer.map(a => a.char).join('');
@@ -283,7 +283,7 @@ elif st.session_state['role'] == 'student':
         """
         import streamlit.components.v1 as components
         components.html(html_code, height=350)
-    
+
     @st.fragment
     def run_ex2_dynamic(q_data, idx):
         st.markdown("### 📝 EXERCISE 2: FILL IN THE BLANK")
@@ -320,13 +320,13 @@ elif st.session_state['role'] == 'student':
             <div class="opts" id="opts-container"></div>
             <button class="btn-check" onclick="checkAnswer()">🚀 SUBMIT ANSWER</button>
             <div id="msg"></div>
-    
+
             <script>
                 const qText = {js_q};
                 const correctAns = {js_ans};
                 const options = {js_opts};
                 let selectedOpt = null;
-    
+
                 function render() {{
                     let displayWord = selectedOpt ? selectedOpt : "";
                     let htmlQ = qText.replace('___________', `<span class="blank ${{selectedOpt ? 'filled' : ''}}">${{displayWord}}</span>`);
@@ -342,7 +342,7 @@ elif st.session_state['role'] == 'student':
                         optsEl.appendChild(btn);
                     }});
                 }}
-    
+
                 function checkAnswer() {{
                     if (!selectedOpt) {{
                         document.getElementById('msg').innerHTML = "<span style='color:#fdcb6e;'>⚠️ Please select a word first!</span>";
@@ -362,7 +362,7 @@ elif st.session_state['role'] == 'student':
         """
         import streamlit.components.v1 as components
         components.html(html_code, height=350)
-    
+
     @st.fragment
     def run_ex3_dynamic(all_qs, idx):
         st.markdown("### 🔗 EXERCISE 3: MATCHING")
@@ -379,7 +379,7 @@ elif st.session_state['role'] == 'student':
         js_pairs = json.dumps({q['question']: q['answer'] for q in ex3_qs})
         js_lefts = json.dumps(lefts)
         js_rights = json.dumps(rights)
-    
+
         html_code = f"""
         <!DOCTYPE html>
         <html>
@@ -403,14 +403,14 @@ elif st.session_state['role'] == 'student':
                 <div class="col" id="col-b"></div>
             </div>
             <div id="msg"></div>
-    
+
             <script>
                 const pairs = {js_pairs};
                 const arrA = {js_lefts};
                 const arrB = {js_rights};
                 let selA = null; let selB = null;
                 let doneA = []; let doneB = [];
-    
+
                 function render() {{
                     const colA = document.getElementById('col-a');
                     colA.innerHTML = '<h4 style="color: #d63031; margin-bottom: 5px;">COLUMN A</h4>';
@@ -423,7 +423,7 @@ elif st.session_state['role'] == 'student':
                         }};
                         colA.appendChild(btn);
                     }});
-    
+
                     const colB = document.getElementById('col-b');
                     colB.innerHTML = '<h4 style="color: #0984e3; margin-bottom: 5px;">COLUMN B</h4>';
                     arrB.forEach(val => {{
@@ -436,7 +436,7 @@ elif st.session_state['role'] == 'student':
                         colB.appendChild(btn);
                     }});
                 }}
-    
+
                 function checkMatch() {{
                     if (selA && selB) {{
                         if (pairs[selA] === selB) {{
@@ -461,136 +461,291 @@ elif st.session_state['role'] == 'student':
         """
         import streamlit.components.v1 as components
         components.html(html_code, height=450)
-    
-        # ---------------------------------------------------------------------
-        # GIAO DIỆN ĐĂNG NHẬP & LUỒNG HỌC TẬP CHÍNH
-        # ---------------------------------------------------------------------
-        st.markdown("<h3 style='text-align: center; color: #0984e3;'>🎒 Student Login</h3>", unsafe_allow_html=True)
+
+    @st.fragment
+    def run_ex4_dynamic(all_qs, idx):
+        st.markdown("### 🕵️‍♀️ EXERCISE 4: THE BIG BOSS WORD SEARCH")
+        st.info("Swipe through the letters in the grid to find the hidden words. Drag and drop them into the correct pictures!")
+        ex4_qs = [q for q in all_qs if q['ex_type'] == 'Ex4']
+        if len(ex4_qs) > 8: ex4_qs = random.sample(ex4_qs, 8)
+        target_words = [q['answer'].upper().replace(" ", "") for q in ex4_qs]
+        pic_mapping = {q['question']: q['answer'].upper().replace(" ", "") for q in ex4_qs}
         
-        class_code_input = st.text_input("🔑 Enter your Class Code:").strip().upper()
-        
-        if class_code_input:
-            # Lấy thông tin lớp từ Database
-            class_res = supabase.table("classes").select("*").eq("class_code", class_code_input).execute()
+        def generate_grid(words, size=12):
+            grid = [['' for _ in range(size)] for _ in range(size)]
+            for word in words:
+                placed = False
+                attempts = 0
+                while not placed and attempts < 100:
+                    direction = random.choice([(0,1), (1,0)]) 
+                    r = random.randint(0, size-1) if direction == (0,1) else random.randint(0, size-len(word))
+                    c = random.randint(0, size-len(word)) if direction == (0,1) else random.randint(0, size-1)
+                    fit = True
+                    for i, char in enumerate(word):
+                        if grid[r + direction[0]*i][c + direction[1]*i] not in ('', char): fit = False; break
+                    if fit:
+                        for i, char in enumerate(word): grid[r + direction[0]*i][c + direction[1]*i] = char
+                        placed = True
+                    attempts += 1
+            for r in range(size):
+                for c in range(size):
+                    if grid[r][c] == '': grid[r][c] = random.choice(string.ascii_uppercase)
+            return grid
             
-            if not class_res.data:
-                st.error("❌ Class Code not found!")
+        grid_data = generate_grid(target_words)
+        js_grid = json.dumps(grid_data)
+        js_targets = json.dumps(target_words)
+        js_mapping = json.dumps(pic_mapping)
+        html_game_code = f"""
+        <!DOCTYPE html>
+        <html lang="en">
+        <head><meta charset="UTF-8">
+        <style>
+            body {{ font-family: 'Nunito', sans-serif; text-align: center; user-select: none; background: transparent; padding-bottom: 30px;}}
+            .grid {{ display: grid; grid-template-columns: repeat(12, 28px); gap: 4px; justify-content: center; margin: 15px auto; touch-action: none;}}
+            .cell {{ width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; background: #fff; border: 2px solid #dfe6e9; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: crosshair; transition: transform 0.1s; }}
+            .cell.selecting {{ background: #ffeaa7; transform: scale(1.1); box-shadow: 0 0 10px #fdcb6e; border-color: #fdcb6e;}}
+            .cell.found {{ background: #55efc4; color: white; border-color: #00b894; opacity: 0.8;}}
+            .bank {{ min-height: 50px; padding: 10px; border: 2px dashed #b2bec3; border-radius: 15px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 15px 0; background: rgba(255,255,255,0.7);}}
+            .pill {{ padding: 6px 15px; background: linear-gradient(135deg, #6c5ce7, #a29bfe); color: white; border-radius: 20px; font-weight: bold; font-size: 14px; cursor: grab; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }}
+            .pictures {{ display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin: auto; }}
+            .pic-box {{ width: 75px; background: white; border-radius: 12px; padding: 8px; display: flex; flex-direction: column; align-items: center; border: 3px solid transparent;}}
+            .pic {{ font-size: 35px; margin-bottom: 5px; }}
+            .drop-zone {{ width: 100%; height: 30px; background: #f1f2f6; border: 2px dashed #ced6e0; border-radius: 6px; display: flex; align-items: center; justify-content: center;}}
+            .drop-zone.drag-over {{ background: #dfe6e9; border-color: #0984e3; transform: scale(1.05);}}
+            .btn-check {{ margin-top: 25px; padding: 12px 30px; background: linear-gradient(90deg, #ff6b6b, #feca57); color: white; border: none; border-radius: 25px; font-size: 18px; font-weight: bold; cursor: pointer; }}
+            #message {{ margin-top: 15px; font-weight: bold; font-size: 18px; }}
+        </style>
+        </head>
+        <body>
+        <div class="grid" id="grid"></div>
+        <h4 style="color:#6c5ce7; margin-bottom: 5px;">Drag words to pictures:</h4>
+        <div class="bank" id="bank"></div>
+        <div class="pictures" id="pictures"></div>
+        <button class="btn-check" onclick="checkAnswers()">🚀 CHECK MY ANSWERS</button>
+        <div id="message"></div>
+
+        <script>
+            const gridData = {js_grid};
+            const targetWords = {js_targets};
+            const picMapping = {js_mapping};
+            let foundWords = [];
+            const gridEl = document.getElementById('grid');
+            gridData.forEach(row => {{
+                row.forEach(letter => {{
+                    let cell = document.createElement('div');
+                    cell.className = 'cell'; cell.innerText = letter;
+                    gridEl.appendChild(cell);
+                }});
+            }});
+            let isSelecting = false; let currentSelection = []; let selectedCells = [];
+            function startSelect(target) {{
+                if(target.classList.contains('cell') && !target.classList.contains('found')) {{
+                    isSelecting = true; target.classList.add('selecting');
+                    currentSelection.push(target.innerText); selectedCells.push(target);
+                }}
+            }}
+            function moveSelect(target) {{
+                if(isSelecting && target.classList.contains('cell') && !target.classList.contains('found') && !selectedCells.includes(target)) {{
+                    target.classList.add('selecting'); currentSelection.push(target.innerText); selectedCells.push(target);
+                }}
+            }}
+            function endSelect() {{
+                if(isSelecting) {{
+                    isSelecting = false;
+                    let wordStr = currentSelection.join('');
+                    let wordStrRev = currentSelection.slice().reverse().join(''); 
+                    let matchedWord = null;
+                    if(targetWords.includes(wordStr) && !foundWords.includes(wordStr)) matchedWord = wordStr;
+                    else if (targetWords.includes(wordStrRev) && !foundWords.includes(wordStrRev)) matchedWord = wordStrRev;
+                    if (matchedWord) {{
+                        selectedCells.forEach(c => {{ c.classList.remove('selecting'); c.classList.add('found'); }});
+                        foundWords.push(matchedWord); createPill(matchedWord); 
+                    }} else {{
+                        selectedCells.forEach(c => c.classList.remove('selecting'));
+                    }}
+                    currentSelection = []; selectedCells = [];
+                }}
+            }}
+            gridEl.addEventListener('mousedown', (e) => startSelect(e.target));
+            gridEl.addEventListener('mouseover', (e) => moveSelect(e.target));
+            window.addEventListener('mouseup', endSelect);
+            gridEl.addEventListener('touchstart', (e) => {{ let t = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY); if(t) startSelect(t); e.preventDefault(); }}, {{passive: false}});
+            gridEl.addEventListener('touchmove', (e) => {{ let t = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY); if(t) moveSelect(t); e.preventDefault(); }}, {{passive: false}});
+            window.addEventListener('touchend', endSelect);
+            const picsEl = document.getElementById('pictures');
+            Object.keys(picMapping).forEach(emoji => {{
+                let box = document.createElement('div'); box.className = 'pic-box';
+                let pic = document.createElement('div'); pic.className = 'pic'; pic.innerText = emoji;
+                let dropZone = document.createElement('div'); dropZone.className = 'drop-zone'; dropZone.dataset.target = picMapping[emoji];
+                dropZone.addEventListener('dragover', (e) => {{ e.preventDefault(); dropZone.classList.add('drag-over'); }});
+                dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+                dropZone.addEventListener('drop', (e) => {{
+                    e.preventDefault(); dropZone.classList.remove('drag-over');
+                    let pill = document.getElementById(e.dataTransfer.getData('text'));
+                    if (pill) {{ dropZone.innerHTML = ''; dropZone.appendChild(pill); dropZone.style.border = 'none'; dropZone.style.background = 'transparent';}}
+                }});
+                box.appendChild(pic); box.appendChild(dropZone); picsEl.appendChild(box);
+            }});
+            const bankEl = document.getElementById('bank');
+            bankEl.addEventListener('dragover', (e) => e.preventDefault());
+            bankEl.addEventListener('drop', (e) => {{ e.preventDefault(); let pill = document.getElementById(e.dataTransfer.getData('text')); if(pill) bankEl.appendChild(pill); }});
+            function createPill(word) {{
+                let pill = document.createElement('div'); pill.className = 'pill'; pill.innerText = word; pill.id = 'pill_' + word; pill.draggable = true;
+                pill.addEventListener('dragstart', (e) => e.dataTransfer.setData('text', e.target.id));
+                bankEl.appendChild(pill);
+            }}
+            function checkAnswers() {{
+                let allCorrect = true; let filledCount = 0;
+                document.querySelectorAll('.drop-zone').forEach(zone => {{
+                    let pill = zone.querySelector('.pill');
+                    if(pill) {{
+                        filledCount++;
+                        if(pill.innerText !== zone.dataset.target) {{ allCorrect = false; zone.parentElement.style.borderColor = "#ff7675"; }} 
+                        else {{ zone.parentElement.style.borderColor = "#55efc4"; }}
+                    }} else {{ allCorrect = false; }}
+                }});
+                let msg = document.getElementById('message');
+                if(filledCount < Object.keys(picMapping).length) msg.innerHTML = "<span style='color:#fdcb6e;'>⚠️ Nu says: You haven't found all words yet!</span>";
+                else if (!allCorrect) msg.innerHTML = "<span style='color:#ff7675;'>❌ Oops, some matches are incorrect. Try again!</span>";
+                else msg.innerHTML = "<span style='color:#00b894;'>🎉 EXCELLENT! You found and matched everything perfectly! 🏆</span>";
+            }}
+        </script>
+        </body>
+        </html>
+        """
+        import streamlit.components.v1 as components
+        components.html(html_game_code, height=1050)
+
+    # ---------------------------------------------------------------------
+    # GIAO DIỆN ĐĂNG NHẬP & LUỒNG HỌC TẬP CHÍNH
+    # ---------------------------------------------------------------------
+    st.markdown("<h3 style='text-align: center; color: #0984e3;'>🎒 Student Login</h3>", unsafe_allow_html=True)
+    
+    class_code_input = st.text_input("🔑 Enter your Class Code:").strip().upper()
+    
+    if class_code_input:
+        # Lấy thông tin lớp từ Database
+        class_res = supabase.table("classes").select("*").eq("class_code", class_code_input).execute()
+        
+        if not class_res.data:
+            st.error("❌ Class Code not found!")
+        else:
+            class_name = class_res.data[0]['class_name']
+            st.success(f"🏫 Found class: **{class_name}**")
+            
+            # Kéo toàn bộ học sinh của lớp đó từ Database về
+            students_res = supabase.table("students").select("*").eq("class_code", class_code_input).execute()
+            students_in_class = students_res.data
+            
+            if len(students_in_class) == 0:
+                st.warning("No students added to this class yet!")
             else:
-                class_name = class_res.data[0]['class_name']
-                st.success(f"🏫 Found class: **{class_name}**")
+                student_options = ["👇 Click here..."] + [s['student_name'] for s in students_in_class]
+                selected_name = st.selectbox("Who are you?", options=student_options)
                 
-                # Kéo toàn bộ học sinh của lớp đó từ Database về
-                students_res = supabase.table("students").select("*").eq("class_code", class_code_input).execute()
-                students_in_class = students_res.data
-                
-                if len(students_in_class) == 0:
-                    st.warning("No students added to this class yet!")
-                else:
-                    student_options = ["👇 Click here..."] + [s['student_name'] for s in students_in_class]
-                    selected_name = st.selectbox("Who are you?", options=student_options)
+                # BƯỚC 3: KIỂM TRA ĐĂNG NHẬP THÀNH CÔNG -> MỚI MỞ GIAO DIỆN HỌC TẬP
+                if selected_name != "👇 Click here...":
+                    st.markdown("---")
                     
-                    # BƯỚC 3: KIỂM TRA ĐĂNG NHẬP THÀNH CÔNG -> MỚI MỞ GIAO DIỆN HỌC TẬP
-                    if selected_name != "👇 Click here...":
-                        st.markdown("---")
-                        
-                        # Lấy thông tin học sinh (để lấy avatar)
-                        student_info = next(item for item in students_in_class if item["student_name"] == selected_name)
-                        avatar_src = f"data:image/jpeg;base64,{student_info['avatar']}" if student_info['avatar'] else "https://cdn-icons-png.flaticon.com/512/149/149071.png"
-                        
-                        # Dùng Flexbox gộp chung Avatar và Bong bóng chat
-                        st.markdown(f"""
-                            <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
-                                <img src="{avatar_src}" style="width: 110px; height: 110px; border-radius: 50%; object-fit: cover; border: 4px solid #0984e3; box-shadow: 0 4px 10px rgba(0,0,0,0.15); flex-shrink: 0;">
-                                <div style="background-color: rgba(0, 184, 148, 0.15); border-left: 6px solid #00b894; padding: 18px 20px; border-radius: 12px; flex-grow: 1; color: #2d3436; font-size: 18px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-                                    🎉 Hello <strong style="color: #00b894; font-size: 20px;">{selected_name}</strong>! Let's complete today's missions!
-                                </div>
+                    # Lấy thông tin học sinh (để lấy avatar)
+                    student_info = next(item for item in students_in_class if item["student_name"] == selected_name)
+                    avatar_src = f"data:image/jpeg;base64,{student_info['avatar']}" if student_info['avatar'] else "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+                    
+                    # Dùng Flexbox gộp chung Avatar và Bong bóng chat
+                    st.markdown(f"""
+                        <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
+                            <img src="{avatar_src}" style="width: 110px; height: 110px; border-radius: 50%; object-fit: cover; border: 4px solid #0984e3; box-shadow: 0 4px 10px rgba(0,0,0,0.15); flex-shrink: 0;">
+                            <div style="background-color: rgba(0, 184, 148, 0.15); border-left: 6px solid #00b894; padding: 18px 20px; border-radius: 12px; flex-grow: 1; color: #2d3436; font-size: 18px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                                🎉 Hello <strong style="color: #00b894; font-size: 20px;">{selected_name}</strong>! Let's complete today's missions!
                             </div>
-                        """, unsafe_allow_html=True)
-                     
-                        # Biến toàn cục lưu trạng thái bài học
-                        if 'playlist' not in st.session_state:
-                            st.session_state['playlist'] = []
-                            st.session_state['current_q'] = 0
-                            st.session_state['all_questions'] = []
-    
-                        st.markdown("---")
-    
-                        # =========================================================
-                        # CƠ CHẾ GIẤU MENU (CHỈ HIỆN 1 TRONG 2 TRẠNG THÁI)
-                        # =========================================================
-                        if len(st.session_state['playlist']) == 0:
-                            
-                            # --- TRẠNG THÁI 1: CHƯA BẤM START -> HIỆN MENU CHỌN ---
-                            st.markdown("### 🎯 CHOOSE YOUR MISSION")
-    
-                            col_b, col_u, col_t = st.columns(3)
-                            with col_b:
-                                sel_book = st.selectbox("📚 Book:", ["Kid's Box 1", "Kid's Box 2", "Kid's Box 3"])
-                            with col_u:
-                                sel_unit = st.selectbox("📖 Unit:", ["Unit 1", "Unit 2", "Unit 3", "Unit 4"])
-                            with col_t:
-                                sel_topic = st.selectbox("🌟 Topic:", ["Animals", "Colors", "Greetings", "Family"])
-    
-                            if st.button("🚀 START MISSION", type="primary", use_container_width=True):
-                                with st.spinner("Đang xào bài và chuẩn bị thử thách..."):
-                                    try:
-                                        # Kéo dữ liệu từ Supabase
-                                        res = supabase.table("questions").select("*") \
-                                                .eq("book", sel_book).eq("unit", sel_unit).eq("topic", sel_topic).execute()
-                                        all_qs = res.data
-                                        
-                                        if not all_qs:
-                                            st.warning("📭 Ôi! Chưa có bài tập nào trong kho cho phần này. Bé chọn chủ đề khác nhé!")
-                                        else:
-                                            st.session_state['all_questions'] = all_qs
-                                            quick_qs = [q for q in all_qs if q['ex_type'] in ['Ex1', 'Ex2']]
-                                            boss_qs = [q for q in all_qs if q['ex_type'] == 'Ex4']
-                                            has_ex3 = any(q['ex_type'] == 'Ex3' for q in all_qs)
-                                            
-                                            num_quick = min(8, len(quick_qs))
-                                            selected_playlist = random.sample(quick_qs, num_quick)
-                                            if has_ex3: selected_playlist.append({'ex_type': 'Ex3'}) 
-                                            random.shuffle(selected_playlist)
-                                            if boss_qs: selected_playlist.append({'ex_type': 'Ex4'})
-                                            
-                                            st.session_state['playlist'] = selected_playlist
-                                            st.session_state['current_q'] = 0
-                                            st.rerun() # Load lại trang để chuyển sang trạng thái 2
-                                    except Exception as e:
-                                        st.error(f"⚠️ Lỗi kết nối lấy đề bài: {e}")
-    
-                        else:
-                            
-                            # --- TRẠNG THÁI 2: ĐÃ BẤM START -> GIẤU MENU, HIỆN BÀI TẬP ---
-                            total_q = len(st.session_state['playlist'])
-                            curr_idx = st.session_state['current_q']
-                            current_q_data = st.session_state['playlist'][curr_idx]
-                            
-                            st.progress((curr_idx + 1) / total_q)
-                            st.caption(f"🚩 Tiến độ: Thử thách số {curr_idx + 1} / {total_q}")
-                            
-                            col_nav1, col_nav2, col_nav3 = st.columns([1, 2, 1])
-                            with col_nav2:
-                                btn_label = "FINISH MISSION 🌟" if curr_idx == total_q - 1 else "NEXT MISSION ➔"
-                                if st.button(btn_label, use_container_width=True, type="secondary"):
-                                    if curr_idx < total_q - 1:
-                                        st.session_state['current_q'] += 1
-                                        st.rerun()
+                        </div>
+                    """, unsafe_allow_html=True)
+                 
+                    # Biến toàn cục lưu trạng thái bài học
+                    if 'playlist' not in st.session_state:
+                        st.session_state['playlist'] = []
+                        st.session_state['current_q'] = 0
+                        st.session_state['all_questions'] = []
+
+                    st.markdown("---")
+
+                    # =========================================================
+                    # CƠ CHẾ GIẤU MENU (CHỈ HIỆN 1 TRONG 2 TRẠNG THÁI)
+                    # =========================================================
+                    if len(st.session_state['playlist']) == 0:
+                        
+                        # --- TRẠNG THÁI 1: CHƯA BẤM START -> HIỆN MENU CHỌN ---
+                        st.markdown("### 🎯 CHOOSE YOUR MISSION")
+
+                        col_b, col_u, col_t = st.columns(3)
+                        with col_b:
+                            sel_book = st.selectbox("📚 Book:", ["Kid's Box 1", "Kid's Box 2", "Kid's Box 3"])
+                        with col_u:
+                            sel_unit = st.selectbox("📖 Unit:", ["Unit 1", "Unit 2", "Unit 3", "Unit 4"])
+                        with col_t:
+                            sel_topic = st.selectbox("🌟 Topic:", ["Animals", "Colors", "Greetings", "Family"])
+
+                        if st.button("🚀 START MISSION", type="primary", use_container_width=True):
+                            with st.spinner("Đang xào bài và chuẩn bị thử thách..."):
+                                try:
+                                    # Kéo dữ liệu từ Supabase
+                                    res = supabase.table("questions").select("*") \
+                                            .eq("book", sel_book).eq("unit", sel_unit).eq("topic", sel_topic).execute()
+                                    all_qs = res.data
+                                    
+                                    if not all_qs:
+                                        st.warning("📭 Ôi! Chưa có bài tập nào trong kho cho phần này. Bé chọn chủ đề khác nhé!")
                                     else:
-                                        st.balloons()
-                                        st.success("🎉 XUẤT SẮC! BÉ ĐÃ ĐÁNH BẠI TOÀN BỘ THỬ THÁCH HÔM NAY!")
-                                        st.session_state['playlist'] = [] # Xóa playlist để quay lại Trạng thái 1
-                                        st.rerun()
+                                        st.session_state['all_questions'] = all_qs
+                                        quick_qs = [q for q in all_qs if q['ex_type'] in ['Ex1', 'Ex2']]
+                                        boss_qs = [q for q in all_qs if q['ex_type'] == 'Ex4']
+                                        has_ex3 = any(q['ex_type'] == 'Ex3' for q in all_qs)
                                         
-                            st.markdown("<br>", unsafe_allow_html=True)
-                            
-                            # Gọi giao diện bài tập tương ứng
-                            ex_type = current_q_data.get('ex_type', '')
-                            if ex_type == 'Ex1': run_ex1_dynamic(current_q_data, curr_idx)
-                            elif ex_type == 'Ex2': run_ex2_dynamic(current_q_data, curr_idx)
-                            elif ex_type == 'Ex3': run_ex3_dynamic(st.session_state['all_questions'], curr_idx)
-                            elif ex_type == 'Ex4': run_ex4_dynamic(st.session_state['all_questions'], curr_idx)
-                            else: st.error("⚠️ Hệ thống không nhận diện được loại bài tập này.")
+                                        num_quick = min(8, len(quick_qs))
+                                        selected_playlist = random.sample(quick_qs, num_quick)
+                                        if has_ex3: selected_playlist.append({'ex_type': 'Ex3'}) 
+                                        random.shuffle(selected_playlist)
+                                        if boss_qs: selected_playlist.append({'ex_type': 'Ex4'})
+                                        
+                                        st.session_state['playlist'] = selected_playlist
+                                        st.session_state['current_q'] = 0
+                                        st.rerun() # Load lại trang để chuyển sang trạng thái 2
+                                except Exception as e:
+                                    st.error(f"⚠️ Lỗi kết nối lấy đề bài: {e}")
+
+                    else:
+                        
+                        # --- TRẠNG THÁI 2: ĐÃ BẤM START -> GIẤU MENU, HIỆN BÀI TẬP ---
+                        total_q = len(st.session_state['playlist'])
+                        curr_idx = st.session_state['current_q']
+                        current_q_data = st.session_state['playlist'][curr_idx]
+                        
+                        st.progress((curr_idx + 1) / total_q)
+                        st.caption(f"🚩 Tiến độ: Thử thách số {curr_idx + 1} / {total_q}")
+                        
+                        col_nav1, col_nav2, col_nav3 = st.columns([1, 2, 1])
+                        with col_nav2:
+                            btn_label = "FINISH MISSION 🌟" if curr_idx == total_q - 1 else "NEXT MISSION ➔"
+                            if st.button(btn_label, use_container_width=True, type="secondary"):
+                                if curr_idx < total_q - 1:
+                                    st.session_state['current_q'] += 1
+                                    st.rerun()
+                                else:
+                                    st.balloons()
+                                    st.success("🎉 XUẤT SẮC! BÉ ĐÃ ĐÁNH BẠI TOÀN BỘ THỬ THÁCH HÔM NAY!")
+                                    st.session_state['playlist'] = [] # Xóa playlist để quay lại Trạng thái 1
+                                    st.rerun()
+                                    
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        
+                        # Gọi giao diện bài tập tương ứng
+                        ex_type = current_q_data.get('ex_type', '')
+                        if ex_type == 'Ex1': run_ex1_dynamic(current_q_data, curr_idx)
+                        elif ex_type == 'Ex2': run_ex2_dynamic(current_q_data, curr_idx)
+                        elif ex_type == 'Ex3': run_ex3_dynamic(st.session_state['all_questions'], curr_idx)
+                        elif ex_type == 'Ex4': run_ex4_dynamic(st.session_state['all_questions'], curr_idx)
+                        else: st.error("⚠️ Hệ thống không nhận diện được loại bài tập này.")
                 
 # ================= 6. GÓC GIÁO VIÊN (TEACHER PORTAL) =================
 elif st.session_state['role'] == 'teacher':
