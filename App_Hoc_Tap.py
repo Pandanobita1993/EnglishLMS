@@ -164,85 +164,108 @@ if st.session_state['role'] is None:
     st.info("👆 Please select your portal from the menu above to continue.")
 
 # ================= 5. GÓC HỌC VIÊN (STUDENT PORTAL) =================
-elif st.session_state['role'] == 'student':
-    st.markdown("<h3 style='text-align: center; color: #0984e3;'>🎒 Student Login</h3>", unsafe_allow_html=True)
-    
-    class_code_input = st.text_input("🔑 Enter your Class Code:").strip().upper()
-    
-    if class_code_input:
-        # Lấy thông tin lớp từ Database
-        class_res = supabase.table("classes").select("*").eq("class_code", class_code_input).execute()
-        
-        if not class_res.data:
-            st.error("❌ Class Code not found!")
-        else:
-            class_name = class_res.data[0]['class_name']
-            st.success(f"🏫 Found class: **{class_name}**")
-            
-            # Kéo toàn bộ học sinh của lớp đó từ Database về
-            students_res = supabase.table("students").select("*").eq("class_code", class_code_input).execute()
-            students_in_class = students_res.data
-            
-            if len(students_in_class) == 0:
-                st.warning("No students added to this class yet!")
-            else:
-                student_options = ["👇 Click here..."] + [s['student_name'] for s in students_in_class]
-                selected_name = st.selectbox("Who are you?", options=student_options)
-                # BƯỚC 3: VÀO GIAO DIỆN HỌC TẬP
-                if selected_name != "👇 Click here...":
-                    st.markdown("---")
-                    
-                    # Lấy thông tin học sinh (để lấy avatar)
-                    student_info = next(item for item in students_in_class if item["student_name"] == selected_name)
-                    avatar_src = f"data:image/jpeg;base64,{student_info['avatar']}" if student_info['avatar'] else "https://cdn-icons-png.flaticon.com/512/149/149071.png"
-                    
-                    # Dùng Flexbox gộp chung Avatar và Bong bóng chat để căn giữa tuyệt đối
-                    st.markdown(f"""
-                        <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 10px;">
-                            <img src="{avatar_src}" style="width: 110px; height: 110px; border-radius: 50%; object-fit: cover; border: 4px solid #0984e3; box-shadow: 0 4px 10px rgba(0,0,0,0.15); flex-shrink: 0;">
-                            <div style="background-color: rgba(0, 184, 148, 0.15); border-left: 6px solid #00b894; padding: 18px 20px; border-radius: 12px; flex-grow: 1; color: #2d3436; font-size: 18px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-                                🎉 Hello <strong style="color: #00b894; font-size: 20px;">{selected_name}</strong>! Let's complete today's missions!
-                            </div>
-                        </div>
-                    """, unsafe_allow_html=True)
-                 
-        st.markdown("---")
-        
-        # ACTIVE SESSION BANNER
-        if 'active_session' in st.session_state:
-            session = st.session_state['active_session']
-            st.error("🚨 **NEW ASSIGNMENT FROM TEACHER!**")
-            st.info(f"📚 **Book:** {session['book']} | 🏷️ **Units:** {', '.join(session['units'])} | 🎯 **Skill:** {session['skill']}")
-            st.write(f"⏳ **Deadline:** {session['deadline'].strftime('%d/%m/%Y %H:%M')}")
-        else:
-            st.success("✨ No mandatory assignments today. Let's practice freely!")
-        
-        # ---------------------------------------------------------
-        # EXERCISE 1: SPELLING (TAP TO FILL)
-        # ---------------------------------------------------------
-        @st.fragment
-        def run_exercise_1():
-            st.markdown("### 🧩 EXERCISE 1: WORD PUZZLE")
-            
-            # Dòng hướng dẫn thao tác cực kỳ dễ hiểu cho bé
-            st.markdown("👉 **How to play:** Tap the letters below to spell the correct word!")
-            
-            # Gợi ý tiếng Anh dành cho trẻ em
-            st.info("💡 **Hint:** I am a very big animal. I have big ears and a long trunk! What am I? 🐘")
+# =========================================================================
+        # 5. GÓC HỌC VIÊN (STUDENT PORTAL) - PHIÊN BẢN ĐẤU NỐI DỮ LIỆU ĐỘNG
+        # =========================================================================
+        st.markdown(f"<h1 style='text-align: center; font-size: 45px;'>🚀 WELCOME TO CAMBRIDGE KIDS</h1>", unsafe_allow_html=True)
 
-            correct_word = "ELEPHANT"
+        # --- KHUNG HIỂN THỊ AVATAR VÀ BONG BÓNG CHAT ---
+        avatar_src = "https://cdn-icons-png.flaticon.com/512/3048/3048122.png" # Có thể thay bằng avatar lấy từ DB sau
+        st.markdown(f"""
+            <div class="chat-container" style="display: flex; align-items: center; gap: 20px; margin-bottom: 25px;">
+                <img src="{avatar_src}" style="width: 110px; height: 110px; border-radius: 50%; object-fit: cover; border: 4px solid #0984e3; box-shadow: 0 4px 10px rgba(0,0,0,0.15); flex-shrink: 0;">
+                <div class="chat-bubble" style="background-color: rgba(0, 184, 148, 0.15); border-left: 6px solid #00b894; padding: 18px 20px; border-radius: 12px; flex-grow: 1; color: #2d3436; font-size: 18px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                    🎉 Hello <strong style="color: #00b894; font-size: 22px;">{selected_name}</strong>! Are you ready for today's adventure?
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+
+        # --- KHU VỰC CHỌN NHIỆM VỤ ---
+        st.markdown("### 🎯 CHOOSE YOUR MISSION")
+        
+        col_b, col_u, col_t = st.columns(3)
+        with col_b:
+            sel_book = st.selectbox("📚 Book:", ["Kid's Box 1", "Kid's Box 2", "Kid's Box 3"])
+        with col_u:
+            sel_unit = st.selectbox("📖 Unit:", ["Unit 1", "Unit 2", "Unit 3", "Unit 4"])
+        with col_t:
+            sel_topic = st.selectbox("🌟 Topic:", ["Animals", "Colors", "Greetings", "Family"])
+
+        # Biến toàn cục lưu trạng thái bài học
+        if 'playlist' not in st.session_state:
+            st.session_state['playlist'] = []
+            st.session_state['current_q'] = 0
+            st.session_state['all_questions'] = []
+
+        # NÚT BẤM BẮT ĐẦU VÀ LOGIC BỐC THĂM
+        if st.button("🚀 START MISSION", type="primary", use_container_width=True):
+            with st.spinner("Đang xào bài và chuẩn bị thử thách..."):
+                try:
+                    # Kéo dữ liệu từ Supabase (Lọc 3 lớp)
+                    res = supabase.table("questions").select("*") \
+                            .eq("book", sel_book).eq("unit", sel_unit).eq("topic", sel_topic).execute()
+                    
+                    all_qs = res.data
+                    
+                    if not all_qs:
+                        st.warning("📭 Ôi! Chưa có bài tập nào trong kho cho phần này. Bé chọn chủ đề khác nhé!")
+                    else:
+                        st.session_state['all_questions'] = all_qs # Lưu lại toàn bộ câu hỏi của chủ đề này
+                        
+                        # Phân loại câu hỏi nhanh (Ex1, Ex2) và Boss (Ex4)
+                        # Riêng Ex3 sẽ được xử lý riêng vì nó cần gom tất cả các dòng Ex3 lại thành 1 bài Matching
+                        quick_qs = [q for q in all_qs if q['ex_type'] in ['Ex1', 'Ex2']]
+                        boss_qs = [q for q in all_qs if q['ex_type'] == 'Ex4']
+                        has_ex3 = any(q['ex_type'] == 'Ex3' for q in all_qs)
+                        
+                        # Rút thăm: Tối đa 8 câu Ex1, Ex2
+                        num_quick = min(8, len(quick_qs))
+                        selected_playlist = random.sample(quick_qs, num_quick)
+                        
+                        # Nếu có Ex3 trong ngân hàng, nhét 1 đại diện Ex3 vào Playlist
+                        if has_ex3:
+                            selected_playlist.append({'ex_type': 'Ex3'}) 
+                        
+                        # Xào lên cho ngẫu nhiên
+                        random.shuffle(selected_playlist)
+                        
+                        # Nhét Boss (Ex4) vào CỐ ĐỊNH cuối cùng
+                        if boss_qs:
+                            selected_playlist.append({'ex_type': 'Ex4'})
+                        
+                        st.session_state['playlist'] = selected_playlist
+                        st.session_state['current_q'] = 0
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"⚠️ Lỗi kết nối lấy đề bài: {e}")
+        
+        st.markdown("---")
+
+        # =====================================================================
+        # HỆ THỐNG CÁC HÀM FRAGMENT BÀI TẬP (NHẬN DỮ LIỆU ĐỘNG)
+        # =====================================================================
+        import random, string, json
+        
+        @st.fragment
+        def run_ex1_dynamic(q_data, idx):
+            st.markdown("### 🧩 EXERCISE 1: WORD PUZZLE")
+            st.markdown("👉 **How to play:** Tap the letters below to spell the correct word!")
+            st.info(f"💡 **Hint:** {q_data['question']}")
+
+            correct_word = str(q_data['answer']).upper().strip().replace(" ", "")
+            pool_key = f"ex1_pool_{idx}"
+            ans_key = f"ex1_ans_{idx}"
             
-            # 1. Khởi tạo kho dữ liệu chữ cái
-            if 'ex1_pool' not in st.session_state:
+            if pool_key not in st.session_state:
                 chars = list(correct_word)
                 random.shuffle(chars)
-                st.session_state['ex1_pool'] = [{'id': i, 'char': c, 'used': False} for i, c in enumerate(chars)]
-                st.session_state['ex1_answer'] = []
+                st.session_state[pool_key] = [{'id': i, 'char': c, 'used': False} for i, c in enumerate(chars)]
+                st.session_state[ans_key] = []
 
-            pool = st.session_state['ex1_pool']
-            answer = st.session_state['ex1_answer']
+            pool = st.session_state[pool_key]
+            answer = st.session_state[ans_key]
 
-            # 2. VẼ DÃY Ô TRỐNG (Đã fix lỗi thụt lề Markdown)
+            # Vẽ ô đứt nét
             html_boxes = "<div style='display: flex; gap: 8px; justify-content: center; margin: 10px 0 20px 0; flex-wrap: wrap;'>"
             for i in range(len(correct_word)):
                 if i < len(answer):
@@ -251,468 +274,374 @@ elif st.session_state['role'] == 'student':
                 else:
                     html_boxes += "<div style='width: 45px; height: 50px; border: 2px dashed #b2bec3; border-radius: 8px; background-color: rgba(255,255,255,0.5);'></div>"
             html_boxes += "</div>"
-            
             st.markdown(html_boxes, unsafe_allow_html=True)
 
-            # 3. CỤM NÚT ĐIỀU KHIỂN (ĐÃ CẤP CHỨNG MINH NHÂN DÂN `key` ĐỂ CHỐNG LỖI)
-            st.markdown("<br>", unsafe_allow_html=True)
+            # Nút Delete / Reset
             ctrl_col1, ctrl_col2, ctrl_col3, ctrl_col4 = st.columns([1, 2, 2, 1])
             with ctrl_col2:
-                # Thêm key="btn_del_ex1"
-                if st.button("⌫ Delete", key="btn_del_ex1", use_container_width=True, disabled=len(answer) == 0):
+                if st.button("⌫ Delete", key=f"del_{idx}", use_container_width=True, disabled=len(answer) == 0):
                     last_item = answer.pop()
                     for p in pool:
-                        if p['id'] == last_item['id']:
-                            p['used'] = False
+                        if p['id'] == last_item['id']: p['used'] = False
                     st.rerun()
             with ctrl_col3:
-                # Thêm key="btn_res_ex1"
-                if st.button("↻ Reset", key="btn_res_ex1", use_container_width=True, disabled=len(answer) == 0):
-                    for p in pool:
-                        p['used'] = False
+                if st.button("↻ Reset", key=f"res_{idx}", use_container_width=True, disabled=len(answer) == 0):
+                    for p in pool: p['used'] = False
                     answer.clear()
                     st.rerun()
 
-            # 4. KHO CHỮ CÁI ĐỂ BẤM
+            # Bàn phím chữ cái
             st.markdown("<br>", unsafe_allow_html=True)
             cols = st.columns(len(correct_word))
             for i, item in enumerate(pool):
                 with cols[i]:
                     if not item['used']:
-                        if st.button(item['char'], key=f"btn_{item['id']}", use_container_width=True, type="primary"):
+                        if st.button(item['char'], key=f"btn_{idx}_{item['id']}", use_container_width=True, type="primary"):
                             if len(answer) < len(correct_word):
                                 item['used'] = True
                                 answer.append(item)
                                 st.rerun()
                     else:
-                        st.button(item['char'], key=f"btn_dis_{item['id']}", disabled=True, use_container_width=True)
+                        st.button(item['char'], key=f"btndis_{idx}_{item['id']}", disabled=True, use_container_width=True)
 
-            # 5. CHẤM ĐIỂM TỰ ĐỘNG
+            # Chấm điểm
             st.markdown("---")
             if len(answer) == len(correct_word):
-                current_spelling = "".join([item['char'] for item in answer])
-                if current_spelling == correct_word:
+                if "".join([item['char'] for item in answer]) == correct_word:
+                    st.success(f"🎉 Awesome! You spelled **{correct_word}** correctly!")
                     st.balloons()
-                    st.success("🎉 Awesome! You spelled **ELEPHANT** correctly!")
-                    if lottie_success: st_lottie(lottie_success, height=150, key="succ_1")
                 else:
                     st.error("❌ Not quite! Tap 'Delete' or 'Reset' to try again!")
 
-        # Gọi bài 1 ra chạy
-        run_exercise_1()
-        st.markdown("---")
-
-        # ---------------------------------------------------------
-        # EXERCISE 2: FILL IN THE BLANK (TAP TO FILL)
-        # ---------------------------------------------------------
         @st.fragment
-        def run_exercise_2():
+        def run_ex2_dynamic(q_data, idx):
             st.markdown("### 📝 EXERCISE 2: FILL IN THE BLANK")
-            st.info("Tap the correct word below to fill in the blank! 🐶")
+            st.info("Tap the correct word below to fill in the blank!")
             
-            base_question = "She went ___________ to buy a new dress yesterday."
-            correct_answer_ex2 = "shopping"
-            options_ex2 = ["shopping", "supermarket", "BigC"]
-
-            if 'ex2_selected' not in st.session_state:
-                st.session_state['ex2_selected'] = None
-                st.session_state['ex2_mistakes'] = 0
-                st.session_state['ex2_done'] = False
-                opts = options_ex2.copy()
+            base_q = str(q_data['question'])
+            correct_ans = str(q_data['answer']).strip()
+            # Xử lý các lựa chọn
+            raw_opts = str(q_data['options']).split(',')
+            opts = [o.strip() for o in raw_opts if o.strip()]
+            if correct_ans not in opts: opts.append(correct_ans) # Đề phòng cô giáo quên nhập đáp án vào ô options
+            
+            sel_key = f"ex2_sel_{idx}"
+            if sel_key not in st.session_state:
                 random.shuffle(opts)
-                st.session_state['ex2_options'] = opts
+                st.session_state[f"ex2_opts_{idx}"] = opts
+                st.session_state[sel_key] = None
+                st.session_state[f"ex2_done_{idx}"] = False
 
-            current_word = st.session_state['ex2_selected'] if st.session_state['ex2_selected'] else "..."
-            blank_color = "#0984e3" if st.session_state['ex2_selected'] else "#b2bec3"
+            current_word = st.session_state[sel_key] if st.session_state[sel_key] else "..."
+            blank_color = "#0984e3" if st.session_state[sel_key] else "#b2bec3"
             
-            display_question = base_question.replace(
-                '___________', 
-                f'<span style="color: {blank_color}; border: 2px dashed {blank_color}; background: #fff; padding: 2px 12px; border-radius: 8px; font-weight: bold;">{current_word}</span>'
-            )
+            display_q = base_q.replace('___________', f'<span style="color:{blank_color}; border:2px dashed {blank_color}; background:#fff; padding:2px 12px; border-radius:8px;">{current_word}</span>')
+            st.markdown(f"<div style='font-size:18px; background:rgba(255,255,255,0.7); padding:18px; border-radius:12px; text-align:center; margin-bottom:20px;'>{display_q}</div>", unsafe_allow_html=True)
 
-            st.markdown(f"""
-                <div style="font-size: 18px; color: #2d3436; background: rgba(255,255,255,0.7); padding: 18px; border-radius: 12px; text-align: center; margin-bottom: 20px;">
-                    {display_question}
-                </div>
-            """, unsafe_allow_html=True)
-
-            if not st.session_state['ex2_done']:
-                cols = st.columns(len(options_ex2))
-                for i, opt in enumerate(st.session_state['ex2_options']):
+            if not st.session_state[f"ex2_done_{idx}"]:
+                cols = st.columns(len(st.session_state[f"ex2_opts_{idx}"]))
+                for i, opt in enumerate(st.session_state[f"ex2_opts_{idx}"]):
                     with cols[i]:
-                        is_chosen = (st.session_state['ex2_selected'] == opt)
-                        btn_label = f"✨ [{opt}]" if is_chosen else f"📦 {opt}"
-                        if st.button(btn_label, use_container_width=True, key=f"ex2_btn_{i}"):
-                            st.session_state['ex2_selected'] = opt
-                            st.rerun() # Bây giờ st.rerun() chỉ load đúng cái ô bài tập 2 này, không load lại cả web!
+                        is_chosen = (st.session_state[sel_key] == opt)
+                        if st.button(f"✨ [{opt}]" if is_chosen else f"📦 {opt}", key=f"e2b_{idx}_{i}", use_container_width=True):
+                            st.session_state[sel_key] = opt
+                            st.rerun()
 
                 st.markdown("<br>", unsafe_allow_html=True)
-                if st.button("🚀 SUBMIT ANSWER", use_container_width=True, type="primary"):
-                    if not st.session_state['ex2_selected']:
+                if st.button("🚀 SUBMIT ANSWER", key=f"e2s_{idx}", use_container_width=True, type="primary"):
+                    if not st.session_state[sel_key]:
                         st.warning("⚠️ Please select a word first!")
                     else:
-                        if st.session_state['ex2_selected'] == correct_answer_ex2:
-                            st.balloons()
-                            st.session_state['ex2_done'] = True
-                            mistakes = st.session_state['ex2_mistakes']
-                            if mistakes == 0:
-                                st.success(f"🎉 Perfect! You got it right on the first try!")
-                            else:
-                                st.success(f"👏 Good job! You found the answer after {mistakes} incorrect attempts.")
+                        if st.session_state[sel_key] == correct_ans:
+                            st.session_state[f"ex2_done_{idx}"] = True
                             st.rerun()
                         else:
-                            st.session_state['ex2_mistakes'] += 1
-                            st.error(f"❌ Oops, '{st.session_state['ex2_selected']}' is incorrect. (Mistakes: {st.session_state['ex2_mistakes']})")
+                            st.error(f"❌ Oops, '{st.session_state[sel_key]}' is incorrect.")
             else:
-                st.success(f"✅ Completed! Correct answer: **{correct_answer_ex2}** (Mistakes made: {st.session_state['ex2_mistakes']})")
+                st.success(f"✅ Perfect! The correct answer is: **{correct_ans}**")
+                st.balloons()
 
-        # Gọi bài 2 ra chạy
-        run_exercise_2()
-        st.markdown("---")
-
-        # ---------------------------------------------------------
-        # EXERCISE 3: MATCHING (TAP TO CONNECT)
-        # ---------------------------------------------------------
         @st.fragment
-        def run_exercise_3():
+        def run_ex3_dynamic(all_qs, idx):
             st.markdown("### 🔗 EXERCISE 3: MATCHING")
-            st.info("Tap an item in COLUMN A, then tap its match in COLUMN B. 🐶")
+            st.info("Tap an item in COLUMN A, then tap its match in COLUMN B.")
 
-            matching_pairs = {
-                "How are you?": "I'm fine, thanks.",
-                "What's your name?": "My name is Nu.",
-                "How old are you?": "I'm 8 years old."
-            }
-
-            if 'ex3_lefts' not in st.session_state:
+            # Tự động gom TẤT CẢ câu Ex3 trong chủ đề này lại
+            ex3_qs = [q for q in all_qs if q['ex_type'] == 'Ex3']
+            if not ex3_qs:
+                st.error("Không đủ dữ liệu tạo bài nối.")
+                return
+                
+            matching_pairs = {q['question']: q['answer'] for q in ex3_qs}
+            
+            if f'ex3_lefts_{idx}' not in st.session_state:
                 lefts = list(matching_pairs.keys())
                 rights = list(matching_pairs.values())
                 random.shuffle(lefts)
                 random.shuffle(rights)
-                st.session_state['ex3_lefts'] = lefts
-                st.session_state['ex3_rights'] = rights
-                st.session_state['ex3_sel_left'] = None
-                st.session_state['ex3_sel_right'] = None
-                st.session_state['ex3_completed'] = []
-                st.session_state['ex3_mistakes'] = 0
+                st.session_state[f'ex3_lefts_{idx}'] = lefts
+                st.session_state[f'ex3_rights_{idx}'] = rights
+                st.session_state[f'ex3_sl_{idx}'] = None
+                st.session_state[f'ex3_sr_{idx}'] = None
+                st.session_state[f'ex3_done_{idx}'] = []
 
-            if st.session_state['ex3_sel_left'] and st.session_state['ex3_sel_right']:
-                l_val = st.session_state['ex3_sel_left']
-                r_val = st.session_state['ex3_sel_right']
-                
+            # Logic check nối
+            if st.session_state[f'ex3_sl_{idx}'] and st.session_state[f'ex3_sr_{idx}']:
+                l_val = st.session_state[f'ex3_sl_{idx}']
+                r_val = st.session_state[f'ex3_sr_{idx}']
                 if matching_pairs[l_val] == r_val:
-                    st.session_state['ex3_completed'].append(l_val)
+                    st.session_state[f'ex3_done_{idx}'].append(l_val)
                     st.toast("🎉 Correct Match!", icon="✅")
                 else:
-                    st.session_state['ex3_mistakes'] += 1
-                    st.toast(f"❌ Incorrect! (Mistakes: {st.session_state['ex3_mistakes']})", icon="🚨")
-                
-                st.session_state['ex3_sel_left'] = None
-                st.session_state['ex3_sel_right'] = None
+                    st.toast("❌ Incorrect Match!", icon="🚨")
+                st.session_state[f'ex3_sl_{idx}'] = None
+                st.session_state[f'ex3_sr_{idx}'] = None
                 st.rerun()
 
             col_a, col_b = st.columns(2)
-
             with col_a:
                 st.markdown("<h5 style='text-align: center; color: #d63031;'>🔹 COLUMN A</h5>", unsafe_allow_html=True)
-                for item in st.session_state['ex3_lefts']:
-                    is_done = item in st.session_state['ex3_completed']
-                    is_sel = item == st.session_state['ex3_sel_left']
-                    
+                for item in st.session_state[f'ex3_lefts_{idx}']:
+                    is_done = item in st.session_state[f'ex3_done_{idx}']
+                    is_sel = item == st.session_state[f'ex3_sl_{idx}']
                     if is_done:
-                        st.button(f"✅ {item}", key=f"L_{item}", disabled=True, use_container_width=True)
+                        st.button(f"✅ {item}", key=f"LA_{idx}_{item}", disabled=True, use_container_width=True)
                     elif is_sel:
-                        if st.button(f"🟡 {item}", key=f"L_{item}", type="primary", use_container_width=True):
-                            st.session_state['ex3_sel_left'] = None 
-                            st.rerun()
+                        if st.button(f"🟡 {item}", key=f"LA_{idx}_{item}", type="primary", use_container_width=True):
+                            st.session_state[f'ex3_sl_{idx}'] = None; st.rerun()
                     else:
-                        if st.button(f"🟦 {item}", key=f"L_{item}", use_container_width=True):
-                            st.session_state['ex3_sel_left'] = item
-                            st.rerun()
-
+                        if st.button(f"🟦 {item}", key=f"LA_{idx}_{item}", use_container_width=True):
+                            st.session_state[f'ex3_sl_{idx}'] = item; st.rerun()
             with col_b:
                 st.markdown("<h5 style='text-align: center; color: #0984e3;'>🔸 COLUMN B</h5>", unsafe_allow_html=True)
-                for item in st.session_state['ex3_rights']:
+                for item in st.session_state[f'ex3_rights_{idx}']:
                     parent_key = [k for k, v in matching_pairs.items() if v == item][0]
-                    is_done = parent_key in st.session_state['ex3_completed']
-                    is_sel = item == st.session_state['ex3_sel_right']
-
+                    is_done = parent_key in st.session_state[f'ex3_done_{idx}']
+                    is_sel = item == st.session_state[f'ex3_sr_{idx}']
                     if is_done:
-                        st.button(f"✅ {item}", key=f"R_{item}", disabled=True, use_container_width=True)
+                        st.button(f"✅ {item}", key=f"LB_{idx}_{item}", disabled=True, use_container_width=True)
                     elif is_sel:
-                        if st.button(f"🟡 {item}", key=f"R_{item}", type="primary", use_container_width=True):
-                            st.session_state['ex3_sel_right'] = None
-                            st.rerun()
+                        if st.button(f"🟡 {item}", key=f"LB_{idx}_{item}", type="primary", use_container_width=True):
+                            st.session_state[f'ex3_sr_{idx}'] = None; st.rerun()
                     else:
-                        if st.button(f"🟧 {item}", key=f"R_{item}", use_container_width=True):
-                            st.session_state['ex3_sel_right'] = item
-                            st.rerun()
+                        if st.button(f"🟧 {item}", key=f"LB_{idx}_{item}", use_container_width=True):
+                            st.session_state[f'ex3_sr_{idx}'] = item; st.rerun()
 
-            if len(st.session_state['ex3_completed']) == len(matching_pairs):
+            if len(st.session_state[f'ex3_done_{idx}']) == len(matching_pairs):
+                st.success("🎉 Awesome! You matched everything perfectly!")
                 st.balloons()
-                if st.session_state['ex3_mistakes'] == 0:
-                    st.success("🎉 Awesome! You matched everything perfectly with 0 mistakes!")
-                    if lottie_success: st_lottie(lottie_success, height=200, key="succ_3")
-                else:
-                    st.success(f"👏 Good effort! You finished the exercise with {st.session_state['ex3_mistakes']} incorrect attempts.")
 
-        # Gọi bài 3 ra chạy
-        run_exercise_3()
+        @st.fragment
+        def run_ex4_dynamic(all_qs, idx):
+            st.markdown("### 🕵️‍♀️ EXERCISE 4: THE BIG BOSS WORD SEARCH")
+            st.info("Swipe through the letters in the grid to find the hidden words. Drag and drop them into the correct pictures!")
 
-        # ---------------------------------------------------------
-        # EXERCISE 4: WORD SEARCH & DRAG (MINI GAME NÚT CHẠM)
-        # ---------------------------------------------------------
-        st.markdown("---")
-        st.markdown("### 🕵️‍♀️ EXERCISE 4: WORD SEARCH & MATCH")
-        st.info("Swipe through the letters in the grid to find the hidden words. When found, drag and drop the word into the correct picture! 🐶")
-
-        html_game_code = """
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-        <meta charset="UTF-8">
-        <style>
-            body { font-family: 'Nunito', sans-serif; text-align: center; user-select: none; background: transparent;}
+            ex4_qs = [q for q in all_qs if q['ex_type'] == 'Ex4']
+            # Giới hạn 8 câu cho lưới 12x12
+            if len(ex4_qs) > 8: ex4_qs = random.sample(ex4_qs, 8)
             
-            /* Lưới chữ 10x10 */
-            .grid { display: grid; grid-template-columns: repeat(10, 35px); gap: 4px; justify-content: center; margin: 15px auto; touch-action: none;}
-            .cell { width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; background: #fff; border: 2px solid #dfe6e9; border-radius: 8px; font-weight: bold; font-size: 18px; color: #2d3436; cursor: crosshair; transition: transform 0.1s; }
+            target_words = [q['answer'].upper().replace(" ", "") for q in ex4_qs]
+            pic_mapping = {q['question']: q['answer'].upper().replace(" ", "") for q in ex4_qs}
+
+            # THUẬT TOÁN TẠO LƯỚI MA TRẬN TỰ ĐỘNG BẰNG PYTHON (Đỉnh cao đây nè bồ)
+            def generate_grid(words, size=12):
+                grid = [['' for _ in range(size)] for _ in range(size)]
+                for word in words:
+                    placed = False
+                    attempts = 0
+                    while not placed and attempts < 100:
+                        direction = random.choice([(0,1), (1,0)]) # Ngang hoặc Dọc
+                        r = random.randint(0, size-1) if direction == (0,1) else random.randint(0, size-len(word))
+                        c = random.randint(0, size-len(word)) if direction == (0,1) else random.randint(0, size-1)
+                        fit = True
+                        for i, char in enumerate(word):
+                            if grid[r + direction[0]*i][c + direction[1]*i] not in ('', char): fit = False; break
+                        if fit:
+                            for i, char in enumerate(word): grid[r + direction[0]*i][c + direction[1]*i] = char
+                            placed = True
+                        attempts += 1
+                for r in range(size):
+                    for c in range(size):
+                        if grid[r][c] == '': grid[r][c] = random.choice(string.ascii_uppercase)
+                return grid
+
+            grid_data = generate_grid(target_words)
             
-            /* Trạng thái bôi đen và Đã tìm thấy */
-            .cell.selecting { background: #ffeaa7; transform: scale(1.1); box-shadow: 0 0 10px #fdcb6e; border-color: #fdcb6e;}
-            .cell.found { background: #55efc4; color: white; text-decoration: line-through; border-color: #00b894; opacity: 0.8;}
+            # Đóng gói dữ liệu Python vứt sang Javascript
+            js_grid = json.dumps(grid_data)
+            js_targets = json.dumps(target_words)
+            js_mapping = json.dumps(pic_mapping)
+
+            # HTML & Javascript (Dùng dữ liệu được bơm từ Python)
+            html_game_code = f"""
+            <!DOCTYPE html>
+            <html lang="en">
+            <head><meta charset="UTF-8">
+            <style>
+                body {{ font-family: 'Nunito', sans-serif; text-align: center; user-select: none; background: transparent; padding-bottom: 30px;}}
+                .grid {{ display: grid; grid-template-columns: repeat(12, 28px); gap: 4px; justify-content: center; margin: 15px auto; touch-action: none;}}
+                .cell {{ width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; background: #fff; border: 2px solid #dfe6e9; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: crosshair; transition: transform 0.1s; }}
+                .cell.selecting {{ background: #ffeaa7; transform: scale(1.1); box-shadow: 0 0 10px #fdcb6e; border-color: #fdcb6e;}}
+                .cell.found {{ background: #55efc4; color: white; border-color: #00b894; opacity: 0.8;}}
+                .bank {{ min-height: 50px; padding: 10px; border: 2px dashed #b2bec3; border-radius: 15px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 15px 0; background: rgba(255,255,255,0.7);}}
+                .pill {{ padding: 6px 15px; background: linear-gradient(135deg, #6c5ce7, #a29bfe); color: white; border-radius: 20px; font-weight: bold; font-size: 14px; cursor: grab; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }}
+                .pictures {{ display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin: auto; }}
+                .pic-box {{ width: 75px; background: white; border-radius: 12px; padding: 8px; display: flex; flex-direction: column; align-items: center; border: 3px solid transparent;}}
+                .pic {{ font-size: 35px; margin-bottom: 5px; }}
+                .drop-zone {{ width: 100%; height: 30px; background: #f1f2f6; border: 2px dashed #ced6e0; border-radius: 6px; display: flex; align-items: center; justify-content: center;}}
+                .drop-zone.drag-over {{ background: #dfe6e9; border-color: #0984e3; transform: scale(1.05);}}
+                .btn-check {{ margin-top: 25px; padding: 12px 30px; background: linear-gradient(90deg, #ff6b6b, #feca57); color: white; border: none; border-radius: 25px; font-size: 18px; font-weight: bold; cursor: pointer; }}
+                #message {{ margin-top: 15px; font-weight: bold; font-size: 18px; }}
+            </style>
+            </head>
+            <body>
+            <div class="grid" id="grid"></div>
+            <h4 style="color:#6c5ce7; margin-bottom: 5px;">Drag words to pictures:</h4>
+            <div class="bank" id="bank"></div>
+            <div class="pictures" id="pictures"></div>
+            <button class="btn-check" onclick="checkAnswers()">🚀 CHECK MY ANSWERS</button>
+            <div id="message"></div>
+
+            <script>
+                const gridData = {js_grid};
+                const targetWords = {js_targets};
+                const picMapping = {js_mapping};
+                let foundWords = [];
+
+                const gridEl = document.getElementById('grid');
+                gridData.forEach(row => {{
+                    row.forEach(letter => {{
+                        let cell = document.createElement('div');
+                        cell.className = 'cell'; cell.innerText = letter;
+                        gridEl.appendChild(cell);
+                    }});
+                }});
+
+                let isSelecting = false; let currentSelection = []; let selectedCells = [];
+                function startSelect(target) {{
+                    if(target.classList.contains('cell') && !target.classList.contains('found')) {{
+                        isSelecting = true; target.classList.add('selecting');
+                        currentSelection.push(target.innerText); selectedCells.push(target);
+                    }}
+                }}
+                function moveSelect(target) {{
+                    if(isSelecting && target.classList.contains('cell') && !target.classList.contains('found') && !selectedCells.includes(target)) {{
+                        target.classList.add('selecting'); currentSelection.push(target.innerText); selectedCells.push(target);
+                    }}
+                }}
+                function endSelect() {{
+                    if(isSelecting) {{
+                        isSelecting = false;
+                        let wordStr = currentSelection.join('');
+                        let wordStrRev = currentSelection.slice().reverse().join(''); 
+                        let matchedWord = null;
+                        if(targetWords.includes(wordStr) && !foundWords.includes(wordStr)) matchedWord = wordStr;
+                        else if (targetWords.includes(wordStrRev) && !foundWords.includes(wordStrRev)) matchedWord = wordStrRev;
+
+                        if (matchedWord) {{
+                            selectedCells.forEach(c => {{ c.classList.remove('selecting'); c.classList.add('found'); }});
+                            foundWords.push(matchedWord); createPill(matchedWord); 
+                        }} else {{
+                            selectedCells.forEach(c => c.classList.remove('selecting'));
+                        }}
+                        currentSelection = []; selectedCells = [];
+                    }}
+                }}
+                gridEl.addEventListener('mousedown', (e) => startSelect(e.target));
+                gridEl.addEventListener('mouseover', (e) => moveSelect(e.target));
+                window.addEventListener('mouseup', endSelect);
+                gridEl.addEventListener('touchstart', (e) => {{ let t = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY); if(t) startSelect(t); e.preventDefault(); }}, {{passive: false}});
+                gridEl.addEventListener('touchmove', (e) => {{ let t = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY); if(t) moveSelect(t); e.preventDefault(); }}, {{passive: false}});
+                window.addEventListener('touchend', endSelect);
+
+                const picsEl = document.getElementById('pictures');
+                Object.keys(picMapping).forEach(emoji => {{
+                    let box = document.createElement('div'); box.className = 'pic-box';
+                    let pic = document.createElement('div'); pic.className = 'pic'; pic.innerText = emoji;
+                    let dropZone = document.createElement('div'); dropZone.className = 'drop-zone'; dropZone.dataset.target = picMapping[emoji];
+                    dropZone.addEventListener('dragover', (e) => {{ e.preventDefault(); dropZone.classList.add('drag-over'); }});
+                    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+                    dropZone.addEventListener('drop', (e) => {{
+                        e.preventDefault(); dropZone.classList.remove('drag-over');
+                        let pill = document.getElementById(e.dataTransfer.getData('text'));
+                        if (pill) {{ dropZone.innerHTML = ''; dropZone.appendChild(pill); dropZone.style.border = 'none'; dropZone.style.background = 'transparent';}}
+                    }});
+                    box.appendChild(pic); box.appendChild(dropZone); picsEl.appendChild(box);
+                }});
+
+                const bankEl = document.getElementById('bank');
+                bankEl.addEventListener('dragover', (e) => e.preventDefault());
+                bankEl.addEventListener('drop', (e) => {{ e.preventDefault(); let pill = document.getElementById(e.dataTransfer.getData('text')); if(pill) bankEl.appendChild(pill); }});
+
+                function createPill(word) {{
+                    let pill = document.createElement('div'); pill.className = 'pill'; pill.innerText = word; pill.id = 'pill_' + word; pill.draggable = true;
+                    pill.addEventListener('dragstart', (e) => e.dataTransfer.setData('text', e.target.id));
+                    bankEl.appendChild(pill);
+                }}
+
+                function checkAnswers() {{
+                    let allCorrect = true; let filledCount = 0;
+                    document.querySelectorAll('.drop-zone').forEach(zone => {{
+                        let pill = zone.querySelector('.pill');
+                        if(pill) {{
+                            filledCount++;
+                            if(pill.innerText !== zone.dataset.target) {{ allCorrect = false; zone.parentElement.style.borderColor = "#ff7675"; }} 
+                            else {{ zone.parentElement.style.borderColor = "#55efc4"; }}
+                        }} else {{ allCorrect = false; }}
+                    }});
+                    let msg = document.getElementById('message');
+                    if(filledCount < Object.keys(picMapping).length) msg.innerHTML = "<span style='color:#fdcb6e;'>⚠️ Nu says: You haven't found all words yet!</span>";
+                    else if (!allCorrect) msg.innerHTML = "<span style='color:#ff7675;'>❌ Oops, some matches are incorrect. Try again!</span>";
+                    else msg.innerHTML = "<span style='color:#00b894;'>🎉 EXCELLENT! You found and matched everything perfectly! 🏆</span>";
+                }}
+            </script>
+            </body>
+            </html>
+            """
+            import streamlit.components.v1 as components
+            components.html(html_game_code, height=1050)
+
+
+        # --- KHU VỰC ĐIỀU HƯỚNG VÀ RENDER BÀI TẬP ---
+        if len(st.session_state['playlist']) > 0:
+            total_q = len(st.session_state['playlist'])
+            curr_idx = st.session_state['current_q']
+            current_q_data = st.session_state['playlist'][curr_idx]
             
-            /* Khu vực chứa từ rơi ra */
-            .bank { min-height: 50px; padding: 15px; border: 2px dashed #b2bec3; border-radius: 15px; display: flex; gap: 10px; justify-content: center; align-items: center; background: rgba(255,255,255,0.7); margin: 15px 0; }
-            .pill { padding: 8px 20px; background: linear-gradient(135deg, #6c5ce7, #a29bfe); color: white; border-radius: 20px; font-weight: bold; font-size: 16px; cursor: grab; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-            .pill:active { cursor: grabbing; transform: scale(0.95); }
+            st.progress((curr_idx + 1) / total_q)
+            st.caption(f"🚩 Tiến độ: Thử thách số {curr_idx + 1} / {total_q}")
             
-            /* Khu vực hình ảnh thả vào */
-            .pictures { display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; }
-            .pic-box { width: 90px; background: white; border-radius: 15px; padding: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); display: flex; flex-direction: column; align-items: center; border: 3px solid transparent; transition: all 0.3s;}
-            .pic { font-size: 45px; margin-bottom: 5px; }
+            col_nav1, col_nav2, col_nav3 = st.columns([1, 2, 1])
+            with col_nav2:
+                # Nút chuyển câu - chỉ xuất hiện sau khi nhấn Start
+                btn_label = "FINISH MISSION 🌟" if curr_idx == total_q - 1 else "NEXT MISSION ➔"
+                if st.button(btn_label, use_container_width=True, type="secondary"):
+                    if curr_idx < total_q - 1:
+                        st.session_state['current_q'] += 1
+                        st.rerun()
+                    else:
+                        st.balloons()
+                        st.success("🎉 XUẤT SẮC! BÉ ĐÃ ĐÁNH BẠI TOÀN BỘ THỬ THÁCH HÔM NAY!")
+                        st.session_state['playlist'] = [] # Xóa playlist để kết thúc
+                        st.rerun()
+                        
+            st.markdown("<br>", unsafe_allow_html=True)
             
-            /* Ô đón từ được thả */
-            .drop-zone { width: 100%; height: 35px; background: #f1f2f6; border: 2px dashed #ced6e0; border-radius: 8px; display: flex; align-items: center; justify-content: center; transition: all 0.2s;}
-            .drop-zone.drag-over { background: #dfe6e9; border-color: #0984e3; transform: scale(1.05);}
+            # 🔥 ĐẤU NỐI LOGIC: CÂU HỎI LOẠI NÀO THÌ GỌI FRAGMENT LOẠI ĐÓ 🔥
+            ex_type = current_q_data.get('ex_type', '')
             
-            /* Nút chấm điểm */
-            .btn-check { margin-top: 20px; padding: 12px 30px; background: linear-gradient(90deg, #ff6b6b, #feca57); color: white; border: none; border-radius: 25px; font-size: 18px; font-weight: bold; cursor: pointer; box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4); transition: transform 0.2s; }
-            .btn-check:hover { transform: scale(1.05); }
-            #message { margin-top: 15px; font-weight: bold; font-size: 18px; }
-        </style>
-        </head>
-        <body>
-
-        <!-- BẢNG LƯỚI CHỮ -->
-        <div class="grid" id="grid"></div>
-        
-        <h4 style="color:#6c5ce7; margin-bottom: 5px;">Drag the found words into the pictures:</h4>
-        <!-- KHO CHỨA TỪ BAY RA -->
-        <div class="bank" id="bank"></div>
-        
-        <!-- CÁC ẢNH MỤC TIÊU -->
-        <div class="pictures" id="pictures"></div>
-        
-        <button class="btn-check" onclick="checkAnswers()">🚀 CHECK ANSWERS</button>
-        <div id="message"></div>
-
-        <script>
-            // 1. DỮ LIỆU ĐẦU VÀO
-            const gridData = [
-                ['A','P','P','L','E','X','Z','Q','M','E'],
-                ['T','X','X','X','X','X','X','X','X','W'],
-                ['G','X','B','A','N','A','N','A','X','P'],
-                ['R','X','X','X','X','X','X','X','X','L'],
-                ['A','O','R','A','N','G','E','X','X','M'],
-                ['P','X','X','X','X','X','X','X','X','C'],
-                ['E','X','M','E','L','O','N','X','X','V'],
-                ['D','X','X','X','X','X','X','X','X','S'],
-                ['F','X','X','X','X','X','X','X','X','D'],
-                ['J','X','X','X','X','X','X','X','X','F']
-            ];
-            
-            const targetWords = ["APPLE", "BANANA", "ORANGE", "GRAPE", "MELON"];
-            const picMapping = { "🍎": "APPLE", "🍌": "BANANA", "🍊": "ORANGE", "🍇": "GRAPE", "🍈": "MELON" };
-            let foundWords = [];
-
-            // 2. VẼ BẢNG 10x10
-            const gridEl = document.getElementById('grid');
-            gridData.forEach((row, r) => {
-                row.forEach((letter, c) => {
-                    let cell = document.createElement('div');
-                    cell.className = 'cell';
-                    cell.innerText = letter;
-                    gridEl.appendChild(cell);
-                });
-            });
-
-            // 3. THUẬT TOÁN QUÉT CHUỘT
-            let isSelecting = false;
-            let currentSelection = [];
-            let selectedCells = [];
-
-            function startSelect(target) {
-                if(target.classList.contains('cell') && !target.classList.contains('found')) {
-                    isSelecting = true;
-                    target.classList.add('selecting');
-                    currentSelection.push(target.innerText);
-                    selectedCells.push(target);
-                }
-            }
-
-            function moveSelect(target) {
-                if(isSelecting && target.classList.contains('cell') && !target.classList.contains('found')) {
-                    if(!selectedCells.includes(target)){ 
-                        target.classList.add('selecting');
-                        currentSelection.push(target.innerText);
-                        selectedCells.push(target);
-                    }
-                }
-            }
-
-            function endSelect() {
-                if(isSelecting) {
-                    isSelecting = false;
-                    let wordStr = currentSelection.join('');
-                    let wordStrRev = currentSelection.slice().reverse().join(''); 
-                    
-                    let matchedWord = null;
-                    if(targetWords.includes(wordStr) && !foundWords.includes(wordStr)) matchedWord = wordStr;
-                    else if (targetWords.includes(wordStrRev) && !foundWords.includes(wordStrRev)) matchedWord = wordStrRev;
-
-                    if (matchedWord) {
-                        selectedCells.forEach(c => {
-                            c.classList.remove('selecting');
-                            c.classList.add('found');
-                        });
-                        foundWords.push(matchedWord);
-                        createPill(matchedWord); 
-                    } else {
-                        selectedCells.forEach(c => c.classList.remove('selecting'));
-                    }
-                    
-                    currentSelection = [];
-                    selectedCells = [];
-                }
-            }
-
-            gridEl.addEventListener('mousedown', (e) => startSelect(e.target));
-            gridEl.addEventListener('mouseover', (e) => moveSelect(e.target));
-            window.addEventListener('mouseup', endSelect);
-            
-            gridEl.addEventListener('touchstart', (e) => {
-                let touch = e.touches[0];
-                let target = document.elementFromPoint(touch.clientX, touch.clientY);
-                if(target) startSelect(target);
-                e.preventDefault(); 
-            }, {passive: false});
-
-            gridEl.addEventListener('touchmove', (e) => {
-                let touch = e.touches[0];
-                let target = document.elementFromPoint(touch.clientX, touch.clientY);
-                if(target) moveSelect(target);
-                e.preventDefault();
-            }, {passive: false});
-
-            window.addEventListener('touchend', endSelect);
-
-            // 4. VẼ HÌNH ẢNH VÀ Ô DROP ZONE
-            const picsEl = document.getElementById('pictures');
-            Object.keys(picMapping).forEach(emoji => {
-                let box = document.createElement('div');
-                box.className = 'pic-box';
-                
-                let pic = document.createElement('div');
-                pic.className = 'pic';
-                pic.innerText = emoji;
-                
-                let dropZone = document.createElement('div');
-                dropZone.className = 'drop-zone';
-                dropZone.dataset.target = picMapping[emoji]; 
-                
-                dropZone.addEventListener('dragover', (e) => {
-                    e.preventDefault();
-                    dropZone.classList.add('drag-over');
-                });
-                dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-                dropZone.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    dropZone.classList.remove('drag-over');
-                    let pillId = e.dataTransfer.getData('text');
-                    let pill = document.getElementById(pillId);
-                    if (pill) {
-                        dropZone.innerHTML = ''; 
-                        dropZone.appendChild(pill);
-                        dropZone.style.border = 'none';
-                        dropZone.style.background = 'transparent';
-                    }
-                });
-
-                box.appendChild(pic);
-                box.appendChild(dropZone);
-                picsEl.appendChild(box);
-            });
-
-            const bankEl = document.getElementById('bank');
-            bankEl.addEventListener('dragover', (e) => e.preventDefault());
-            bankEl.addEventListener('drop', (e) => {
-                e.preventDefault();
-                let pillId = e.dataTransfer.getData('text');
-                let pill = document.getElementById(pillId);
-                if(pill) bankEl.appendChild(pill);
-            });
-
-            function createPill(word) {
-                let pill = document.createElement('div');
-                pill.className = 'pill';
-                pill.innerText = word;
-                pill.id = 'pill_' + word;
-                pill.draggable = true;
-                pill.addEventListener('dragstart', (e) => {
-                    e.dataTransfer.setData('text', e.target.id);
-                });
-                bankEl.appendChild(pill);
-            }
-
-            // 5. KIỂM TRA ĐÁP ÁN
-            function checkAnswers() {
-                let dropZones = document.querySelectorAll('.drop-zone');
-                let allCorrect = true;
-                let filledCount = 0;
-
-                dropZones.forEach(zone => {
-                    let pill = zone.querySelector('.pill');
-                    if(pill) {
-                        filledCount++;
-                        let word = pill.innerText;
-                        let target = zone.dataset.target;
-                        if(word !== target) {
-                            allCorrect = false;
-                            zone.parentElement.style.borderColor = "#ff7675"; 
-                        } else {
-                            zone.parentElement.style.borderColor = "#55efc4"; 
-                        }
-                    } else {
-                        allCorrect = false;
-                    }
-                });
-
-                let msg = document.getElementById('message');
-                if(filledCount < 5) {
-                    msg.innerHTML = "<span style='color:#fdcb6e;'>⚠️ Nu says: You haven't found and dropped all 5 words yet!</span>";
-                } else if (!allCorrect) {
-                    msg.innerHTML = "<span style='color:#ff7675;'>❌ Oops, some matches are incorrect. Check the red borders and try again!</span>";
-                } else {
-                    msg.innerHTML = "<span style='color:#00b894;'>🎉 EXCELLENT! You found and matched everything perfectly! 🏆</span>";
-                }
-            }
-        </script>
-        </body>
-        </html>
-        """
-        
-        components.html(html_game_code, height=950)
+            if ex_type == 'Ex1':
+                run_ex1_dynamic(current_q_data, curr_idx)
+            elif ex_type == 'Ex2':
+                run_ex2_dynamic(current_q_data, curr_idx)
+            elif ex_type == 'Ex3':
+                # Ex3 xài dữ liệu tổng hợp của toàn bộ Unit/Topic hiện tại
+                run_ex3_dynamic(st.session_state['all_questions'], curr_idx)
+            elif ex_type == 'Ex4':
+                # Ex4 đánh boss xài dữ liệu tổng hợp để tạo lưới 12x12 tự động
+                run_ex4_dynamic(st.session_state['all_questions'], curr_idx)
+            else:
+                st.error("⚠️ Hệ thống không nhận diện được loại bài tập này.")
 
 
 # ================= 6. GÓC GIÁO VIÊN (TEACHER PORTAL) =================
