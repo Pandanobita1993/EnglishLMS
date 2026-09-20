@@ -529,56 +529,61 @@ elif st.session_state['role'] == 'student':
                         </div>
                     """, unsafe_allow_html=True)
                  
-                    # --- KHU VỰC CHỌN NHIỆM VỤ (ĐÃ ĐƯỢC GIẤU KÍN BÊN TRONG IF) ---
-                    st.markdown("### 🎯 CHOOSE YOUR MISSION")
-
-                    col_b, col_u, col_t = st.columns(3)
-                    with col_b:
-                        sel_book = st.selectbox("📚 Book:", ["Kid's Box 1", "Kid's Box 2", "Kid's Box 3"])
-                    with col_u:
-                        sel_unit = st.selectbox("📖 Unit:", ["Unit 1", "Unit 2", "Unit 3", "Unit 4"])
-                    with col_t:
-                        sel_topic = st.selectbox("🌟 Topic:", ["Animals", "Colors", "Greetings", "Family"])
-
                     # Biến toàn cục lưu trạng thái bài học
                     if 'playlist' not in st.session_state:
                         st.session_state['playlist'] = []
                         st.session_state['current_q'] = 0
                         st.session_state['all_questions'] = []
 
-                    # NÚT BẤM BẮT ĐẦU VÀ LOGIC BỐC THĂM
-                    if st.button("🚀 START MISSION", type="primary", use_container_width=True):
-                        with st.spinner("Đang xào bài và chuẩn bị thử thách..."):
-                            try:
-                                # Kéo dữ liệu từ Supabase
-                                res = supabase.table("questions").select("*") \
-                                        .eq("book", sel_book).eq("unit", sel_unit).eq("topic", sel_topic).execute()
-                                all_qs = res.data
-                                
-                                if not all_qs:
-                                    st.warning("📭 Ôi! Chưa có bài tập nào trong kho cho phần này. Bé chọn chủ đề khác nhé!")
-                                else:
-                                    st.session_state['all_questions'] = all_qs
-                                    quick_qs = [q for q in all_qs if q['ex_type'] in ['Ex1', 'Ex2']]
-                                    boss_qs = [q for q in all_qs if q['ex_type'] == 'Ex4']
-                                    has_ex3 = any(q['ex_type'] == 'Ex3' for q in all_qs)
-                                    
-                                    num_quick = min(8, len(quick_qs))
-                                    selected_playlist = random.sample(quick_qs, num_quick)
-                                    if has_ex3: selected_playlist.append({'ex_type': 'Ex3'}) 
-                                    random.shuffle(selected_playlist)
-                                    if boss_qs: selected_playlist.append({'ex_type': 'Ex4'})
-                                    
-                                    st.session_state['playlist'] = selected_playlist
-                                    st.session_state['current_q'] = 0
-                                    st.rerun()
-                            except Exception as e:
-                                st.error(f"⚠️ Lỗi kết nối lấy đề bài: {e}")
-
                     st.markdown("---")
 
-                    # --- KHU VỰC HIỂN THỊ BÀI TẬP SAU KHI START ---
-                    if len(st.session_state['playlist']) > 0:
+                    # =========================================================
+                    # CƠ CHẾ GIẤU MENU (CHỈ HIỆN 1 TRONG 2 TRẠNG THÁI)
+                    # =========================================================
+                    if len(st.session_state['playlist']) == 0:
+                        
+                        # --- TRẠNG THÁI 1: CHƯA BẤM START -> HIỆN MENU CHỌN ---
+                        st.markdown("### 🎯 CHOOSE YOUR MISSION")
+
+                        col_b, col_u, col_t = st.columns(3)
+                        with col_b:
+                            sel_book = st.selectbox("📚 Book:", ["Kid's Box 1", "Kid's Box 2", "Kid's Box 3"])
+                        with col_u:
+                            sel_unit = st.selectbox("📖 Unit:", ["Unit 1", "Unit 2", "Unit 3", "Unit 4"])
+                        with col_t:
+                            sel_topic = st.selectbox("🌟 Topic:", ["Animals", "Colors", "Greetings", "Family"])
+
+                        if st.button("🚀 START MISSION", type="primary", use_container_width=True):
+                            with st.spinner("Đang xào bài và chuẩn bị thử thách..."):
+                                try:
+                                    # Kéo dữ liệu từ Supabase
+                                    res = supabase.table("questions").select("*") \
+                                            .eq("book", sel_book).eq("unit", sel_unit).eq("topic", sel_topic).execute()
+                                    all_qs = res.data
+                                    
+                                    if not all_qs:
+                                        st.warning("📭 Ôi! Chưa có bài tập nào trong kho cho phần này. Bé chọn chủ đề khác nhé!")
+                                    else:
+                                        st.session_state['all_questions'] = all_qs
+                                        quick_qs = [q for q in all_qs if q['ex_type'] in ['Ex1', 'Ex2']]
+                                        boss_qs = [q for q in all_qs if q['ex_type'] == 'Ex4']
+                                        has_ex3 = any(q['ex_type'] == 'Ex3' for q in all_qs)
+                                        
+                                        num_quick = min(8, len(quick_qs))
+                                        selected_playlist = random.sample(quick_qs, num_quick)
+                                        if has_ex3: selected_playlist.append({'ex_type': 'Ex3'}) 
+                                        random.shuffle(selected_playlist)
+                                        if boss_qs: selected_playlist.append({'ex_type': 'Ex4'})
+                                        
+                                        st.session_state['playlist'] = selected_playlist
+                                        st.session_state['current_q'] = 0
+                                        st.rerun() # Load lại trang để chuyển sang trạng thái 2
+                                except Exception as e:
+                                    st.error(f"⚠️ Lỗi kết nối lấy đề bài: {e}")
+
+                    else:
+                        
+                        # --- TRẠNG THÁI 2: ĐÃ BẤM START -> GIẤU MENU, HIỆN BÀI TẬP ---
                         total_q = len(st.session_state['playlist'])
                         curr_idx = st.session_state['current_q']
                         current_q_data = st.session_state['playlist'][curr_idx]
@@ -596,12 +601,12 @@ elif st.session_state['role'] == 'student':
                                 else:
                                     st.balloons()
                                     st.success("🎉 XUẤT SẮC! BÉ ĐÃ ĐÁNH BẠI TOÀN BỘ THỬ THÁCH HÔM NAY!")
-                                    st.session_state['playlist'] = [] 
+                                    st.session_state['playlist'] = [] # Xóa playlist để quay lại Trạng thái 1
                                     st.rerun()
                                     
                         st.markdown("<br>", unsafe_allow_html=True)
                         
-                        # Gọi giao diện bài tập
+                        # Gọi giao diện bài tập tương ứng
                         ex_type = current_q_data.get('ex_type', '')
                         if ex_type == 'Ex1': run_ex1_dynamic(current_q_data, curr_idx)
                         elif ex_type == 'Ex2': run_ex2_dynamic(current_q_data, curr_idx)
