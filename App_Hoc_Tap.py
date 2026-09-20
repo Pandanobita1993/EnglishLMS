@@ -169,428 +169,428 @@ if st.session_state['role'] is None:
 elif st.session_state['role'] == 'student':
     import random, string, json
     
-# ---------------------------------------------------------------------
-# KHAI BÁO CÁC HÀM BÀI TẬP - PHIÊN BẢN JAVASCRIPT SIÊU MƯỢT (NO LAG)
-# ---------------------------------------------------------------------
-@st.fragment
-def run_ex1_dynamic(q_data, idx):
-    st.markdown("### 🧩 EXERCISE 1: WORD PUZZLE")
-    st.info(f"💡 **Hint:** {q_data['question']}")
+    # ---------------------------------------------------------------------
+    # KHAI BÁO CÁC HÀM BÀI TẬP - PHIÊN BẢN JAVASCRIPT SIÊU MƯỢT (NO LAG)
+    # ---------------------------------------------------------------------
+    @st.fragment
+    def run_ex1_dynamic(q_data, idx):
+        st.markdown("### 🧩 EXERCISE 1: WORD PUZZLE")
+        st.info(f"💡 **Hint:** {q_data['question']}")
+        
+        correct_word = str(q_data['answer']).upper().strip().replace(" ", "")
+        chars = list(correct_word)
+        random.shuffle(chars)
+        
+        js_word = json.dumps(correct_word)
+        js_chars = json.dumps(chars)
+        
+        html_code = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <style>
+            body {{ font-family: 'Nunito', sans-serif; text-align: center; user-select: none; background: transparent; margin: 0; padding: 10px; }}
+            .slots {{ display: flex; gap: 8px; justify-content: center; margin: 10px 0 20px 0; flex-wrap: wrap; min-height: 54px; }}
+            .slot {{ width: 45px; height: 50px; border: 2px dashed #b2bec3; border-radius: 8px; background-color: rgba(255,255,255,0.5); display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; color: #2d3436; cursor: pointer; transition: all 0.2s; }}
+            .slot.filled {{ border: 2px solid #0984e3; background-color: #e3f2fd; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }}
+            .keyboard {{ display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; max-width: 400px; margin: 0 auto; }}
+            .key-btn {{ width: 45px; height: 50px; background: linear-gradient(135deg, #ff7675, #d63031); color: white; border: none; border-radius: 8px; font-size: 22px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 0 #b2bec3; transition: all 0.1s; }}
+            .key-btn:active {{ transform: translateY(4px); box-shadow: 0 0 0 #b2bec3; }}
+            .key-btn:disabled {{ background: #dfe6e9; color: #b2bec3; box-shadow: none; cursor: not-allowed; transform: none; }}
+            .controls {{ margin: 20px 0; display: flex; gap: 15px; justify-content: center; }}
+            .ctrl-btn {{ padding: 10px 20px; font-size: 16px; font-weight: bold; border-radius: 20px; border: none; cursor: pointer; color: white; }}
+            .btn-del {{ background: #feca57; }} .btn-reset {{ background: #a29bfe; }}
+            #msg {{ margin-top: 15px; font-size: 18px; font-weight: bold; height: 30px; }}
+        </style>
+        </head>
+        <body>
+            <div class="slots" id="slots"></div>
+            <div class="controls">
+                <button class="ctrl-btn btn-del" onclick="deleteLast()">⌫ Delete</button>
+                <button class="ctrl-btn btn-reset" onclick="resetAll()">↻ Reset</button>
+            </div>
+            <div class="keyboard" id="keyboard"></div>
+            <div id="msg"></div>
     
-    correct_word = str(q_data['answer']).upper().strip().replace(" ", "")
-    chars = list(correct_word)
-    random.shuffle(chars)
+            <script>
+                const targetWord = {js_word};
+                const initialChars = {js_chars};
+                let answer = [];
+                let keyStates = initialChars.map((c, i) => ({{ id: i, char: c, used: false }}));
     
-    js_word = json.dumps(correct_word)
-    js_chars = json.dumps(chars)
-    
-    html_code = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-    <style>
-        body {{ font-family: 'Nunito', sans-serif; text-align: center; user-select: none; background: transparent; margin: 0; padding: 10px; }}
-        .slots {{ display: flex; gap: 8px; justify-content: center; margin: 10px 0 20px 0; flex-wrap: wrap; min-height: 54px; }}
-        .slot {{ width: 45px; height: 50px; border: 2px dashed #b2bec3; border-radius: 8px; background-color: rgba(255,255,255,0.5); display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; color: #2d3436; cursor: pointer; transition: all 0.2s; }}
-        .slot.filled {{ border: 2px solid #0984e3; background-color: #e3f2fd; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }}
-        .keyboard {{ display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; max-width: 400px; margin: 0 auto; }}
-        .key-btn {{ width: 45px; height: 50px; background: linear-gradient(135deg, #ff7675, #d63031); color: white; border: none; border-radius: 8px; font-size: 22px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 0 #b2bec3; transition: all 0.1s; }}
-        .key-btn:active {{ transform: translateY(4px); box-shadow: 0 0 0 #b2bec3; }}
-        .key-btn:disabled {{ background: #dfe6e9; color: #b2bec3; box-shadow: none; cursor: not-allowed; transform: none; }}
-        .controls {{ margin: 20px 0; display: flex; gap: 15px; justify-content: center; }}
-        .ctrl-btn {{ padding: 10px 20px; font-size: 16px; font-weight: bold; border-radius: 20px; border: none; cursor: pointer; color: white; }}
-        .btn-del {{ background: #feca57; }} .btn-reset {{ background: #a29bfe; }}
-        #msg {{ margin-top: 15px; font-size: 18px; font-weight: bold; height: 30px; }}
-    </style>
-    </head>
-    <body>
-        <div class="slots" id="slots"></div>
-        <div class="controls">
-            <button class="ctrl-btn btn-del" onclick="deleteLast()">⌫ Delete</button>
-            <button class="ctrl-btn btn-reset" onclick="resetAll()">↻ Reset</button>
-        </div>
-        <div class="keyboard" id="keyboard"></div>
-        <div id="msg"></div>
-
-        <script>
-            const targetWord = {js_word};
-            const initialChars = {js_chars};
-            let answer = [];
-            let keyStates = initialChars.map((c, i) => ({{ id: i, char: c, used: false }}));
-
-            function render() {{
-                // Render Slots
-                const slotsEl = document.getElementById('slots');
-                slotsEl.innerHTML = '';
-                for (let i = 0; i < targetWord.length; i++) {{
-                    let div = document.createElement('div');
-                    div.className = 'slot' + (answer[i] ? ' filled' : '');
-                    div.innerText = answer[i] ? answer[i].char : '';
-                    div.onclick = () => {{ if(answer[i] && i === answer.length - 1) deleteLast(); }};
-                    slotsEl.appendChild(div);
+                function render() {{
+                    // Render Slots
+                    const slotsEl = document.getElementById('slots');
+                    slotsEl.innerHTML = '';
+                    for (let i = 0; i < targetWord.length; i++) {{
+                        let div = document.createElement('div');
+                        div.className = 'slot' + (answer[i] ? ' filled' : '');
+                        div.innerText = answer[i] ? answer[i].char : '';
+                        div.onclick = () => {{ if(answer[i] && i === answer.length - 1) deleteLast(); }};
+                        slotsEl.appendChild(div);
+                    }}
+                    
+                    // Render Keyboard
+                    const kbEl = document.getElementById('keyboard');
+                    kbEl.innerHTML = '';
+                    keyStates.forEach(k => {{
+                        let btn = document.createElement('button');
+                        btn.className = 'key-btn';
+                        btn.innerText = k.char;
+                        btn.disabled = k.used;
+                        btn.onclick = () => {{
+                            if (answer.length < targetWord.length) {{
+                                k.used = true;
+                                answer.push(k);
+                                checkWin();
+                                render();
+                            }}
+                        }};
+                        kbEl.appendChild(btn);
+                    }});
                 }}
-                
-                // Render Keyboard
-                const kbEl = document.getElementById('keyboard');
-                kbEl.innerHTML = '';
-                keyStates.forEach(k => {{
-                    let btn = document.createElement('button');
-                    btn.className = 'key-btn';
-                    btn.innerText = k.char;
-                    btn.disabled = k.used;
-                    btn.onclick = () => {{
-                        if (answer.length < targetWord.length) {{
-                            k.used = true;
-                            answer.push(k);
-                            checkWin();
-                            render();
-                        }}
-                    }};
-                    kbEl.appendChild(btn);
-                }});
-            }}
-
-            function deleteLast() {{
-                if (answer.length > 0) {{
-                    let last = answer.pop();
-                    keyStates.find(k => k.id === last.id).used = false;
+    
+                function deleteLast() {{
+                    if (answer.length > 0) {{
+                        let last = answer.pop();
+                        keyStates.find(k => k.id === last.id).used = false;
+                        document.getElementById('msg').innerHTML = '';
+                        render();
+                    }}
+                }}
+    
+                function resetAll() {{
+                    answer = [];
+                    keyStates.forEach(k => k.used = false);
                     document.getElementById('msg').innerHTML = '';
                     render();
                 }}
-            }}
-
-            function resetAll() {{
-                answer = [];
-                keyStates.forEach(k => k.used = false);
-                document.getElementById('msg').innerHTML = '';
+    
+                function checkWin() {{
+                    if (answer.length === targetWord.length) {{
+                        let currentStr = answer.map(a => a.char).join('');
+                        if (currentStr === targetWord) {{
+                            document.getElementById('msg').innerHTML = "<span style='color:#00b894;'>🎉 Awesome! You spelled it correctly!</span>";
+                        }} else {{
+                            document.getElementById('msg').innerHTML = "<span style='color:#d63031;'>❌ Not quite! Tap 'Delete' to try again!</span>";
+                        }}
+                    }}
+                }}
                 render();
-            }}
-
-            function checkWin() {{
-                if (answer.length === targetWord.length) {{
-                    let currentStr = answer.map(a => a.char).join('');
-                    if (currentStr === targetWord) {{
-                        document.getElementById('msg').innerHTML = "<span style='color:#00b894;'>🎉 Awesome! You spelled it correctly!</span>";
-                    }} else {{
-                        document.getElementById('msg').innerHTML = "<span style='color:#d63031;'>❌ Not quite! Tap 'Delete' to try again!</span>";
-                    }}
-                }}
-            }}
-            render();
-        </script>
-    </body>
-    </html>
-    """
-    import streamlit.components.v1 as components
-    components.html(html_code, height=350)
-
-@st.fragment
-def run_ex2_dynamic(q_data, idx):
-    st.markdown("### 📝 EXERCISE 2: FILL IN THE BLANK")
-    base_q = str(q_data['question'])
-    correct_ans = str(q_data['answer']).strip()
-    raw_opts = str(q_data['options']).split(',')
-    opts = [o.strip() for o in raw_opts if o.strip()]
-    if correct_ans not in opts: opts.append(correct_ans)
-    random.shuffle(opts)
+            </script>
+        </body>
+        </html>
+        """
+        import streamlit.components.v1 as components
+        components.html(html_code, height=350)
     
-    js_q = json.dumps(base_q)
-    js_ans = json.dumps(correct_ans)
-    js_opts = json.dumps(opts)
-    
-    html_code = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-    <style>
-        body {{ font-family: 'Nunito', sans-serif; text-align: center; background: transparent; padding: 10px; margin: 0; }}
-        .question-box {{ font-size: 20px; background: rgba(255,255,255,0.7); padding: 25px; border-radius: 12px; margin-bottom: 25px; font-weight: bold; color: #2d3436; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }}
-        .blank {{ display: inline-block; min-width: 80px; height: 30px; border-bottom: 3px dashed #b2bec3; margin: 0 10px; color: #0984e3; text-align: center; transition: all 0.2s; }}
-        .blank.filled {{ border-bottom: 3px solid #0984e3; }}
-        .opts {{ display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; }}
-        .opt-btn {{ padding: 12px 25px; font-size: 18px; font-weight: bold; border-radius: 30px; border: 2px solid #74b9ff; background: white; color: #0984e3; cursor: pointer; transition: all 0.1s; box-shadow: 0 4px 0 #74b9ff; }}
-        .opt-btn:active {{ transform: translateY(4px); box-shadow: 0 0 0 #74b9ff; }}
-        .opt-btn.selected {{ background: #0984e3; color: white; }}
-        .btn-check {{ margin-top: 30px; padding: 12px 35px; background: linear-gradient(90deg, #ff6b6b, #feca57); color: white; border: none; border-radius: 25px; font-size: 18px; font-weight: bold; cursor: pointer; box-shadow: 0 5px 15px rgba(255,107,107,0.4); }}
-        #msg {{ margin-top: 15px; font-size: 18px; font-weight: bold; }}
-    </style>
-    </head>
-    <body>
-        <div class="question-box" id="q-box"></div>
-        <div class="opts" id="opts-container"></div>
-        <button class="btn-check" onclick="checkAnswer()">🚀 SUBMIT ANSWER</button>
-        <div id="msg"></div>
-
-        <script>
-            const qText = {js_q};
-            const correctAns = {js_ans};
-            const options = {js_opts};
-            let selectedOpt = null;
-
-            function render() {{
-                let displayWord = selectedOpt ? selectedOpt : "";
-                let htmlQ = qText.replace('___________', `<span class="blank ${{selectedOpt ? 'filled' : ''}}">${{displayWord}}</span>`);
-                document.getElementById('q-box').innerHTML = htmlQ;
-                
-                const optsEl = document.getElementById('opts-container');
-                optsEl.innerHTML = '';
-                options.forEach(opt => {{
-                    let btn = document.createElement('button');
-                    btn.className = 'opt-btn' + (selectedOpt === opt ? ' selected' : '');
-                    btn.innerText = opt;
-                    btn.onclick = () => {{ selectedOpt = opt; render(); document.getElementById('msg').innerHTML=''; }};
-                    optsEl.appendChild(btn);
-                }});
-            }}
-
-            function checkAnswer() {{
-                if (!selectedOpt) {{
-                    document.getElementById('msg').innerHTML = "<span style='color:#fdcb6e;'>⚠️ Please select a word first!</span>";
-                    return;
-                }}
-                if (selectedOpt === correctAns) {{
-                    document.getElementById('msg').innerHTML = "<span style='color:#00b894;'>✅ Perfect! That's correct!</span>";
-                    document.querySelectorAll('.opt-btn').forEach(b => b.onclick = null);
-                }} else {{
-                    document.getElementById('msg').innerHTML = "<span style='color:#ff7675;'>❌ Oops, try again!</span>";
-                }}
-            }}
-            render();
-        </script>
-    </body>
-    </html>
-    """
-    import streamlit.components.v1 as components
-    components.html(html_code, height=350)
-
-@st.fragment
-def run_ex3_dynamic(all_qs, idx):
-    st.markdown("### 🔗 EXERCISE 3: MATCHING")
-    ex3_qs = [q for q in all_qs if q['ex_type'] == 'Ex3']
-    if not ex3_qs:
-        st.error("Không đủ dữ liệu tạo bài nối.")
-        return
+    @st.fragment
+    def run_ex2_dynamic(q_data, idx):
+        st.markdown("### 📝 EXERCISE 2: FILL IN THE BLANK")
+        base_q = str(q_data['question'])
+        correct_ans = str(q_data['answer']).strip()
+        raw_opts = str(q_data['options']).split(',')
+        opts = [o.strip() for o in raw_opts if o.strip()]
+        if correct_ans not in opts: opts.append(correct_ans)
+        random.shuffle(opts)
         
-    lefts = [q['question'] for q in ex3_qs]
-    rights = [q['answer'] for q in ex3_qs]
-    random.shuffle(lefts)
-    random.shuffle(rights)
+        js_q = json.dumps(base_q)
+        js_ans = json.dumps(correct_ans)
+        js_opts = json.dumps(opts)
+        
+        html_code = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <style>
+            body {{ font-family: 'Nunito', sans-serif; text-align: center; background: transparent; padding: 10px; margin: 0; }}
+            .question-box {{ font-size: 20px; background: rgba(255,255,255,0.7); padding: 25px; border-radius: 12px; margin-bottom: 25px; font-weight: bold; color: #2d3436; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }}
+            .blank {{ display: inline-block; min-width: 80px; height: 30px; border-bottom: 3px dashed #b2bec3; margin: 0 10px; color: #0984e3; text-align: center; transition: all 0.2s; }}
+            .blank.filled {{ border-bottom: 3px solid #0984e3; }}
+            .opts {{ display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; }}
+            .opt-btn {{ padding: 12px 25px; font-size: 18px; font-weight: bold; border-radius: 30px; border: 2px solid #74b9ff; background: white; color: #0984e3; cursor: pointer; transition: all 0.1s; box-shadow: 0 4px 0 #74b9ff; }}
+            .opt-btn:active {{ transform: translateY(4px); box-shadow: 0 0 0 #74b9ff; }}
+            .opt-btn.selected {{ background: #0984e3; color: white; }}
+            .btn-check {{ margin-top: 30px; padding: 12px 35px; background: linear-gradient(90deg, #ff6b6b, #feca57); color: white; border: none; border-radius: 25px; font-size: 18px; font-weight: bold; cursor: pointer; box-shadow: 0 5px 15px rgba(255,107,107,0.4); }}
+            #msg {{ margin-top: 15px; font-size: 18px; font-weight: bold; }}
+        </style>
+        </head>
+        <body>
+            <div class="question-box" id="q-box"></div>
+            <div class="opts" id="opts-container"></div>
+            <button class="btn-check" onclick="checkAnswer()">🚀 SUBMIT ANSWER</button>
+            <div id="msg"></div>
     
-    js_pairs = json.dumps({q['question']: q['answer'] for q in ex3_qs})
-    js_lefts = json.dumps(lefts)
-    js_rights = json.dumps(rights)
-
-    html_code = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-    <style>
-        body {{ font-family: 'Nunito', sans-serif; text-align: center; user-select: none; margin: 0; padding: 10px; }}
-        .match-container {{ display: flex; justify-content: space-around; max-width: 600px; margin: 0 auto; }}
-        .col {{ display: flex; flex-direction: column; gap: 15px; width: 45%; }}
-        .m-btn {{ padding: 15px; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.2s; border: 3px solid transparent; }}
-        .btn-a {{ background: #fab1a0; color: #d63031; box-shadow: 0 4px 0 #ff7675; }}
-        .btn-b {{ background: #81ecec; color: #0984e3; box-shadow: 0 4px 0 #00cec9; }}
-        .m-btn:active {{ transform: translateY(4px); box-shadow: 0 0 0 transparent; }}
-        .m-btn.selected {{ border-color: #ffeaa7; box-shadow: 0 0 15px #ffeaa7; transform: scale(1.05); }}
-        .m-btn.done {{ background: #55efc4; color: white; border-color: #00b894; box-shadow: none; cursor: default; transform: none; opacity: 0.8; }}
-        #msg {{ margin-top: 25px; font-size: 18px; font-weight: bold; height: 30px; }}
-    </style>
-    </head>
-    <body>
-        <div class="match-container">
-            <div class="col" id="col-a"></div>
-            <div class="col" id="col-b"></div>
-        </div>
-        <div id="msg"></div>
-
-        <script>
-            const pairs = {js_pairs};
-            const arrA = {js_lefts};
-            const arrB = {js_rights};
-            let selA = null; let selB = null;
-            let doneA = []; let doneB = [];
-
-            function render() {{
-                const colA = document.getElementById('col-a');
-                colA.innerHTML = '<h4 style="color: #d63031; margin-bottom: 5px;">COLUMN A</h4>';
-                arrA.forEach(val => {{
-                    let btn = document.createElement('div');
-                    btn.className = 'm-btn btn-a' + (doneA.includes(val) ? ' done' : '') + (selA === val ? ' selected' : '');
-                    btn.innerText = val;
-                    btn.onclick = () => {{
-                        if (!doneA.includes(val)) {{ selA = (selA === val ? null : val); checkMatch(); render(); }}
-                    }};
-                    colA.appendChild(btn);
-                }});
-
-                const colB = document.getElementById('col-b');
-                colB.innerHTML = '<h4 style="color: #0984e3; margin-bottom: 5px;">COLUMN B</h4>';
-                arrB.forEach(val => {{
-                    let btn = document.createElement('div');
-                    btn.className = 'm-btn btn-b' + (doneB.includes(val) ? ' done' : '') + (selB === val ? ' selected' : '');
-                    btn.innerText = val;
-                    btn.onclick = () => {{
-                        if (!doneB.includes(val)) {{ selB = (selB === val ? null : val); checkMatch(); render(); }}
-                    }};
-                    colB.appendChild(btn);
-                }});
-            }}
-
-            function checkMatch() {{
-                if (selA && selB) {{
-                    if (pairs[selA] === selB) {{
-                        doneA.push(selA); doneB.push(selB);
-                        document.getElementById('msg').innerHTML = "<span style='color:#00b894;'>🎉 Correct Match!</span>";
-                    }} else {{
-                        document.getElementById('msg').innerHTML = "<span style='color:#ff7675;'>❌ Incorrect Match! Try again.</span>";
-                    }}
-                    selA = null; selB = null;
+            <script>
+                const qText = {js_q};
+                const correctAns = {js_ans};
+                const options = {js_opts};
+                let selectedOpt = null;
+    
+                function render() {{
+                    let displayWord = selectedOpt ? selectedOpt : "";
+                    let htmlQ = qText.replace('___________', `<span class="blank ${{selectedOpt ? 'filled' : ''}}">${{displayWord}}</span>`);
+                    document.getElementById('q-box').innerHTML = htmlQ;
                     
-                    if (doneA.length === arrA.length) {{
-                        document.getElementById('msg').innerHTML = "<span style='color:#00b894;'>🏆 Awesome! You matched everything!</span>";
-                    }}
-                }} else {{
-                    document.getElementById('msg').innerHTML = "";
+                    const optsEl = document.getElementById('opts-container');
+                    optsEl.innerHTML = '';
+                    options.forEach(opt => {{
+                        let btn = document.createElement('button');
+                        btn.className = 'opt-btn' + (selectedOpt === opt ? ' selected' : '');
+                        btn.innerText = opt;
+                        btn.onclick = () => {{ selectedOpt = opt; render(); document.getElementById('msg').innerHTML=''; }};
+                        optsEl.appendChild(btn);
+                    }});
                 }}
-            }}
-            render();
-        </script>
-    </body>
-    </html>
-    """
-    import streamlit.components.v1 as components
-    components.html(html_code, height=450)
-
-    # ---------------------------------------------------------------------
-    # GIAO DIỆN ĐĂNG NHẬP & LUỒNG HỌC TẬP CHÍNH
-    # ---------------------------------------------------------------------
-    st.markdown("<h3 style='text-align: center; color: #0984e3;'>🎒 Student Login</h3>", unsafe_allow_html=True)
     
-    class_code_input = st.text_input("🔑 Enter your Class Code:").strip().upper()
+                function checkAnswer() {{
+                    if (!selectedOpt) {{
+                        document.getElementById('msg').innerHTML = "<span style='color:#fdcb6e;'>⚠️ Please select a word first!</span>";
+                        return;
+                    }}
+                    if (selectedOpt === correctAns) {{
+                        document.getElementById('msg').innerHTML = "<span style='color:#00b894;'>✅ Perfect! That's correct!</span>";
+                        document.querySelectorAll('.opt-btn').forEach(b => b.onclick = null);
+                    }} else {{
+                        document.getElementById('msg').innerHTML = "<span style='color:#ff7675;'>❌ Oops, try again!</span>";
+                    }}
+                }}
+                render();
+            </script>
+        </body>
+        </html>
+        """
+        import streamlit.components.v1 as components
+        components.html(html_code, height=350)
     
-    if class_code_input:
-        # Lấy thông tin lớp từ Database
-        class_res = supabase.table("classes").select("*").eq("class_code", class_code_input).execute()
+    @st.fragment
+    def run_ex3_dynamic(all_qs, idx):
+        st.markdown("### 🔗 EXERCISE 3: MATCHING")
+        ex3_qs = [q for q in all_qs if q['ex_type'] == 'Ex3']
+        if not ex3_qs:
+            st.error("Không đủ dữ liệu tạo bài nối.")
+            return
+            
+        lefts = [q['question'] for q in ex3_qs]
+        rights = [q['answer'] for q in ex3_qs]
+        random.shuffle(lefts)
+        random.shuffle(rights)
         
-        if not class_res.data:
-            st.error("❌ Class Code not found!")
-        else:
-            class_name = class_res.data[0]['class_name']
-            st.success(f"🏫 Found class: **{class_name}**")
+        js_pairs = json.dumps({q['question']: q['answer'] for q in ex3_qs})
+        js_lefts = json.dumps(lefts)
+        js_rights = json.dumps(rights)
+    
+        html_code = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <style>
+            body {{ font-family: 'Nunito', sans-serif; text-align: center; user-select: none; margin: 0; padding: 10px; }}
+            .match-container {{ display: flex; justify-content: space-around; max-width: 600px; margin: 0 auto; }}
+            .col {{ display: flex; flex-direction: column; gap: 15px; width: 45%; }}
+            .m-btn {{ padding: 15px; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.2s; border: 3px solid transparent; }}
+            .btn-a {{ background: #fab1a0; color: #d63031; box-shadow: 0 4px 0 #ff7675; }}
+            .btn-b {{ background: #81ecec; color: #0984e3; box-shadow: 0 4px 0 #00cec9; }}
+            .m-btn:active {{ transform: translateY(4px); box-shadow: 0 0 0 transparent; }}
+            .m-btn.selected {{ border-color: #ffeaa7; box-shadow: 0 0 15px #ffeaa7; transform: scale(1.05); }}
+            .m-btn.done {{ background: #55efc4; color: white; border-color: #00b894; box-shadow: none; cursor: default; transform: none; opacity: 0.8; }}
+            #msg {{ margin-top: 25px; font-size: 18px; font-weight: bold; height: 30px; }}
+        </style>
+        </head>
+        <body>
+            <div class="match-container">
+                <div class="col" id="col-a"></div>
+                <div class="col" id="col-b"></div>
+            </div>
+            <div id="msg"></div>
+    
+            <script>
+                const pairs = {js_pairs};
+                const arrA = {js_lefts};
+                const arrB = {js_rights};
+                let selA = null; let selB = null;
+                let doneA = []; let doneB = [];
+    
+                function render() {{
+                    const colA = document.getElementById('col-a');
+                    colA.innerHTML = '<h4 style="color: #d63031; margin-bottom: 5px;">COLUMN A</h4>';
+                    arrA.forEach(val => {{
+                        let btn = document.createElement('div');
+                        btn.className = 'm-btn btn-a' + (doneA.includes(val) ? ' done' : '') + (selA === val ? ' selected' : '');
+                        btn.innerText = val;
+                        btn.onclick = () => {{
+                            if (!doneA.includes(val)) {{ selA = (selA === val ? null : val); checkMatch(); render(); }}
+                        }};
+                        colA.appendChild(btn);
+                    }});
+    
+                    const colB = document.getElementById('col-b');
+                    colB.innerHTML = '<h4 style="color: #0984e3; margin-bottom: 5px;">COLUMN B</h4>';
+                    arrB.forEach(val => {{
+                        let btn = document.createElement('div');
+                        btn.className = 'm-btn btn-b' + (doneB.includes(val) ? ' done' : '') + (selB === val ? ' selected' : '');
+                        btn.innerText = val;
+                        btn.onclick = () => {{
+                            if (!doneB.includes(val)) {{ selB = (selB === val ? null : val); checkMatch(); render(); }}
+                        }};
+                        colB.appendChild(btn);
+                    }});
+                }}
+    
+                function checkMatch() {{
+                    if (selA && selB) {{
+                        if (pairs[selA] === selB) {{
+                            doneA.push(selA); doneB.push(selB);
+                            document.getElementById('msg').innerHTML = "<span style='color:#00b894;'>🎉 Correct Match!</span>";
+                        }} else {{
+                            document.getElementById('msg').innerHTML = "<span style='color:#ff7675;'>❌ Incorrect Match! Try again.</span>";
+                        }}
+                        selA = null; selB = null;
+                        
+                        if (doneA.length === arrA.length) {{
+                            document.getElementById('msg').innerHTML = "<span style='color:#00b894;'>🏆 Awesome! You matched everything!</span>";
+                        }}
+                    }} else {{
+                        document.getElementById('msg').innerHTML = "";
+                    }}
+                }}
+                render();
+            </script>
+        </body>
+        </html>
+        """
+        import streamlit.components.v1 as components
+        components.html(html_code, height=450)
+    
+        # ---------------------------------------------------------------------
+        # GIAO DIỆN ĐĂNG NHẬP & LUỒNG HỌC TẬP CHÍNH
+        # ---------------------------------------------------------------------
+        st.markdown("<h3 style='text-align: center; color: #0984e3;'>🎒 Student Login</h3>", unsafe_allow_html=True)
+        
+        class_code_input = st.text_input("🔑 Enter your Class Code:").strip().upper()
+        
+        if class_code_input:
+            # Lấy thông tin lớp từ Database
+            class_res = supabase.table("classes").select("*").eq("class_code", class_code_input).execute()
             
-            # Kéo toàn bộ học sinh của lớp đó từ Database về
-            students_res = supabase.table("students").select("*").eq("class_code", class_code_input).execute()
-            students_in_class = students_res.data
-            
-            if len(students_in_class) == 0:
-                st.warning("No students added to this class yet!")
+            if not class_res.data:
+                st.error("❌ Class Code not found!")
             else:
-                student_options = ["👇 Click here..."] + [s['student_name'] for s in students_in_class]
-                selected_name = st.selectbox("Who are you?", options=student_options)
+                class_name = class_res.data[0]['class_name']
+                st.success(f"🏫 Found class: **{class_name}**")
                 
-                # BƯỚC 3: KIỂM TRA ĐĂNG NHẬP THÀNH CÔNG -> MỚI MỞ GIAO DIỆN HỌC TẬP
-                if selected_name != "👇 Click here...":
-                    st.markdown("---")
+                # Kéo toàn bộ học sinh của lớp đó từ Database về
+                students_res = supabase.table("students").select("*").eq("class_code", class_code_input).execute()
+                students_in_class = students_res.data
+                
+                if len(students_in_class) == 0:
+                    st.warning("No students added to this class yet!")
+                else:
+                    student_options = ["👇 Click here..."] + [s['student_name'] for s in students_in_class]
+                    selected_name = st.selectbox("Who are you?", options=student_options)
                     
-                    # Lấy thông tin học sinh (để lấy avatar)
-                    student_info = next(item for item in students_in_class if item["student_name"] == selected_name)
-                    avatar_src = f"data:image/jpeg;base64,{student_info['avatar']}" if student_info['avatar'] else "https://cdn-icons-png.flaticon.com/512/149/149071.png"
-                    
-                    # Dùng Flexbox gộp chung Avatar và Bong bóng chat
-                    st.markdown(f"""
-                        <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
-                            <img src="{avatar_src}" style="width: 110px; height: 110px; border-radius: 50%; object-fit: cover; border: 4px solid #0984e3; box-shadow: 0 4px 10px rgba(0,0,0,0.15); flex-shrink: 0;">
-                            <div style="background-color: rgba(0, 184, 148, 0.15); border-left: 6px solid #00b894; padding: 18px 20px; border-radius: 12px; flex-grow: 1; color: #2d3436; font-size: 18px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-                                🎉 Hello <strong style="color: #00b894; font-size: 20px;">{selected_name}</strong>! Let's complete today's missions!
+                    # BƯỚC 3: KIỂM TRA ĐĂNG NHẬP THÀNH CÔNG -> MỚI MỞ GIAO DIỆN HỌC TẬP
+                    if selected_name != "👇 Click here...":
+                        st.markdown("---")
+                        
+                        # Lấy thông tin học sinh (để lấy avatar)
+                        student_info = next(item for item in students_in_class if item["student_name"] == selected_name)
+                        avatar_src = f"data:image/jpeg;base64,{student_info['avatar']}" if student_info['avatar'] else "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+                        
+                        # Dùng Flexbox gộp chung Avatar và Bong bóng chat
+                        st.markdown(f"""
+                            <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
+                                <img src="{avatar_src}" style="width: 110px; height: 110px; border-radius: 50%; object-fit: cover; border: 4px solid #0984e3; box-shadow: 0 4px 10px rgba(0,0,0,0.15); flex-shrink: 0;">
+                                <div style="background-color: rgba(0, 184, 148, 0.15); border-left: 6px solid #00b894; padding: 18px 20px; border-radius: 12px; flex-grow: 1; color: #2d3436; font-size: 18px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                                    🎉 Hello <strong style="color: #00b894; font-size: 20px;">{selected_name}</strong>! Let's complete today's missions!
+                                </div>
                             </div>
-                        </div>
-                    """, unsafe_allow_html=True)
-                 
-                    # Biến toàn cục lưu trạng thái bài học
-                    if 'playlist' not in st.session_state:
-                        st.session_state['playlist'] = []
-                        st.session_state['current_q'] = 0
-                        st.session_state['all_questions'] = []
-
-                    st.markdown("---")
-
-                    # =========================================================
-                    # CƠ CHẾ GIẤU MENU (CHỈ HIỆN 1 TRONG 2 TRẠNG THÁI)
-                    # =========================================================
-                    if len(st.session_state['playlist']) == 0:
-                        
-                        # --- TRẠNG THÁI 1: CHƯA BẤM START -> HIỆN MENU CHỌN ---
-                        st.markdown("### 🎯 CHOOSE YOUR MISSION")
-
-                        col_b, col_u, col_t = st.columns(3)
-                        with col_b:
-                            sel_book = st.selectbox("📚 Book:", ["Kid's Box 1", "Kid's Box 2", "Kid's Box 3"])
-                        with col_u:
-                            sel_unit = st.selectbox("📖 Unit:", ["Unit 1", "Unit 2", "Unit 3", "Unit 4"])
-                        with col_t:
-                            sel_topic = st.selectbox("🌟 Topic:", ["Animals", "Colors", "Greetings", "Family"])
-
-                        if st.button("🚀 START MISSION", type="primary", use_container_width=True):
-                            with st.spinner("Đang xào bài và chuẩn bị thử thách..."):
-                                try:
-                                    # Kéo dữ liệu từ Supabase
-                                    res = supabase.table("questions").select("*") \
-                                            .eq("book", sel_book).eq("unit", sel_unit).eq("topic", sel_topic).execute()
-                                    all_qs = res.data
-                                    
-                                    if not all_qs:
-                                        st.warning("📭 Ôi! Chưa có bài tập nào trong kho cho phần này. Bé chọn chủ đề khác nhé!")
+                        """, unsafe_allow_html=True)
+                     
+                        # Biến toàn cục lưu trạng thái bài học
+                        if 'playlist' not in st.session_state:
+                            st.session_state['playlist'] = []
+                            st.session_state['current_q'] = 0
+                            st.session_state['all_questions'] = []
+    
+                        st.markdown("---")
+    
+                        # =========================================================
+                        # CƠ CHẾ GIẤU MENU (CHỈ HIỆN 1 TRONG 2 TRẠNG THÁI)
+                        # =========================================================
+                        if len(st.session_state['playlist']) == 0:
+                            
+                            # --- TRẠNG THÁI 1: CHƯA BẤM START -> HIỆN MENU CHỌN ---
+                            st.markdown("### 🎯 CHOOSE YOUR MISSION")
+    
+                            col_b, col_u, col_t = st.columns(3)
+                            with col_b:
+                                sel_book = st.selectbox("📚 Book:", ["Kid's Box 1", "Kid's Box 2", "Kid's Box 3"])
+                            with col_u:
+                                sel_unit = st.selectbox("📖 Unit:", ["Unit 1", "Unit 2", "Unit 3", "Unit 4"])
+                            with col_t:
+                                sel_topic = st.selectbox("🌟 Topic:", ["Animals", "Colors", "Greetings", "Family"])
+    
+                            if st.button("🚀 START MISSION", type="primary", use_container_width=True):
+                                with st.spinner("Đang xào bài và chuẩn bị thử thách..."):
+                                    try:
+                                        # Kéo dữ liệu từ Supabase
+                                        res = supabase.table("questions").select("*") \
+                                                .eq("book", sel_book).eq("unit", sel_unit).eq("topic", sel_topic).execute()
+                                        all_qs = res.data
+                                        
+                                        if not all_qs:
+                                            st.warning("📭 Ôi! Chưa có bài tập nào trong kho cho phần này. Bé chọn chủ đề khác nhé!")
+                                        else:
+                                            st.session_state['all_questions'] = all_qs
+                                            quick_qs = [q for q in all_qs if q['ex_type'] in ['Ex1', 'Ex2']]
+                                            boss_qs = [q for q in all_qs if q['ex_type'] == 'Ex4']
+                                            has_ex3 = any(q['ex_type'] == 'Ex3' for q in all_qs)
+                                            
+                                            num_quick = min(8, len(quick_qs))
+                                            selected_playlist = random.sample(quick_qs, num_quick)
+                                            if has_ex3: selected_playlist.append({'ex_type': 'Ex3'}) 
+                                            random.shuffle(selected_playlist)
+                                            if boss_qs: selected_playlist.append({'ex_type': 'Ex4'})
+                                            
+                                            st.session_state['playlist'] = selected_playlist
+                                            st.session_state['current_q'] = 0
+                                            st.rerun() # Load lại trang để chuyển sang trạng thái 2
+                                    except Exception as e:
+                                        st.error(f"⚠️ Lỗi kết nối lấy đề bài: {e}")
+    
+                        else:
+                            
+                            # --- TRẠNG THÁI 2: ĐÃ BẤM START -> GIẤU MENU, HIỆN BÀI TẬP ---
+                            total_q = len(st.session_state['playlist'])
+                            curr_idx = st.session_state['current_q']
+                            current_q_data = st.session_state['playlist'][curr_idx]
+                            
+                            st.progress((curr_idx + 1) / total_q)
+                            st.caption(f"🚩 Tiến độ: Thử thách số {curr_idx + 1} / {total_q}")
+                            
+                            col_nav1, col_nav2, col_nav3 = st.columns([1, 2, 1])
+                            with col_nav2:
+                                btn_label = "FINISH MISSION 🌟" if curr_idx == total_q - 1 else "NEXT MISSION ➔"
+                                if st.button(btn_label, use_container_width=True, type="secondary"):
+                                    if curr_idx < total_q - 1:
+                                        st.session_state['current_q'] += 1
+                                        st.rerun()
                                     else:
-                                        st.session_state['all_questions'] = all_qs
-                                        quick_qs = [q for q in all_qs if q['ex_type'] in ['Ex1', 'Ex2']]
-                                        boss_qs = [q for q in all_qs if q['ex_type'] == 'Ex4']
-                                        has_ex3 = any(q['ex_type'] == 'Ex3' for q in all_qs)
+                                        st.balloons()
+                                        st.success("🎉 XUẤT SẮC! BÉ ĐÃ ĐÁNH BẠI TOÀN BỘ THỬ THÁCH HÔM NAY!")
+                                        st.session_state['playlist'] = [] # Xóa playlist để quay lại Trạng thái 1
+                                        st.rerun()
                                         
-                                        num_quick = min(8, len(quick_qs))
-                                        selected_playlist = random.sample(quick_qs, num_quick)
-                                        if has_ex3: selected_playlist.append({'ex_type': 'Ex3'}) 
-                                        random.shuffle(selected_playlist)
-                                        if boss_qs: selected_playlist.append({'ex_type': 'Ex4'})
-                                        
-                                        st.session_state['playlist'] = selected_playlist
-                                        st.session_state['current_q'] = 0
-                                        st.rerun() # Load lại trang để chuyển sang trạng thái 2
-                                except Exception as e:
-                                    st.error(f"⚠️ Lỗi kết nối lấy đề bài: {e}")
-
-                    else:
-                        
-                        # --- TRẠNG THÁI 2: ĐÃ BẤM START -> GIẤU MENU, HIỆN BÀI TẬP ---
-                        total_q = len(st.session_state['playlist'])
-                        curr_idx = st.session_state['current_q']
-                        current_q_data = st.session_state['playlist'][curr_idx]
-                        
-                        st.progress((curr_idx + 1) / total_q)
-                        st.caption(f"🚩 Tiến độ: Thử thách số {curr_idx + 1} / {total_q}")
-                        
-                        col_nav1, col_nav2, col_nav3 = st.columns([1, 2, 1])
-                        with col_nav2:
-                            btn_label = "FINISH MISSION 🌟" if curr_idx == total_q - 1 else "NEXT MISSION ➔"
-                            if st.button(btn_label, use_container_width=True, type="secondary"):
-                                if curr_idx < total_q - 1:
-                                    st.session_state['current_q'] += 1
-                                    st.rerun()
-                                else:
-                                    st.balloons()
-                                    st.success("🎉 XUẤT SẮC! BÉ ĐÃ ĐÁNH BẠI TOÀN BỘ THỬ THÁCH HÔM NAY!")
-                                    st.session_state['playlist'] = [] # Xóa playlist để quay lại Trạng thái 1
-                                    st.rerun()
-                                    
-                        st.markdown("<br>", unsafe_allow_html=True)
-                        
-                        # Gọi giao diện bài tập tương ứng
-                        ex_type = current_q_data.get('ex_type', '')
-                        if ex_type == 'Ex1': run_ex1_dynamic(current_q_data, curr_idx)
-                        elif ex_type == 'Ex2': run_ex2_dynamic(current_q_data, curr_idx)
-                        elif ex_type == 'Ex3': run_ex3_dynamic(st.session_state['all_questions'], curr_idx)
-                        elif ex_type == 'Ex4': run_ex4_dynamic(st.session_state['all_questions'], curr_idx)
-                        else: st.error("⚠️ Hệ thống không nhận diện được loại bài tập này.")
+                            st.markdown("<br>", unsafe_allow_html=True)
+                            
+                            # Gọi giao diện bài tập tương ứng
+                            ex_type = current_q_data.get('ex_type', '')
+                            if ex_type == 'Ex1': run_ex1_dynamic(current_q_data, curr_idx)
+                            elif ex_type == 'Ex2': run_ex2_dynamic(current_q_data, curr_idx)
+                            elif ex_type == 'Ex3': run_ex3_dynamic(st.session_state['all_questions'], curr_idx)
+                            elif ex_type == 'Ex4': run_ex4_dynamic(st.session_state['all_questions'], curr_idx)
+                            else: st.error("⚠️ Hệ thống không nhận diện được loại bài tập này.")
                 
 # ================= 6. GÓC GIÁO VIÊN (TEACHER PORTAL) =================
 elif st.session_state['role'] == 'teacher':
