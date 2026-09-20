@@ -166,33 +166,48 @@ if st.session_state['role'] is None:
 # =========================================================================
 # 5. GÓC HỌC VIÊN (STUDENT PORTAL) - PHIÊN BẢN ĐẤU NỐI DỮ LIỆU ĐỘNG
 # =========================================================================
-st.markdown(f"<h1 style='text-align: center; font-size: 45px;'>🚀 WELCOME TO CAMBRIDGE KIDS</h1>", unsafe_allow_html=True)
-
-# --- TẠO KHUNG CHỌN TÊN HỌC VIÊN ---
-st.markdown("### 👤 WHO IS PLAYING TODAY?")
-
-col_name, _ = st.columns([1, 2]) # Ép form chọn tên nhỏ lại cho đẹp
-with col_name:
-    selected_name = st.selectbox("Chọn tên của bé:", ["Xu", "Nu", "Khách"])
-
-# Logic tự động thay đổi Avatar theo tên học viên
-if selected_name == "Xu":
-    avatar_src = "https://cdn-icons-png.flaticon.com/512/3048/3048122.png" # Link tạm cho Xu
-elif selected_name == "Nu":
-    avatar_src = "https://cdn-icons-png.flaticon.com/512/3048/3048205.png" # Link tạm cho Nu
-else:
-    avatar_src = "https://cdn-icons-png.flaticon.com/512/149/149071.png" # Link mặc định
-
-# --- KHUNG HIỂN THỊ AVATAR VÀ BONG BÓNG CHAT ---
-st.markdown(f"""
-    <div class="chat-container" style="display: flex; align-items: center; gap: 20px; margin-bottom: 25px; margin-top: 15px;">
-        <img src="{avatar_src}" style="width: 110px; height: 110px; border-radius: 50%; object-fit: cover; border: 4px solid #0984e3; box-shadow: 0 4px 10px rgba(0,0,0,0.15); flex-shrink: 0;">
-        <div class="chat-bubble" style="background-color: rgba(0, 184, 148, 0.15); border-left: 6px solid #00b894; padding: 18px 20px; border-radius: 12px; flex-grow: 1; color: #2d3436; font-size: 18px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-            🎉 Hello <strong style="color: #00b894; font-size: 22px;">{selected_name}</strong>! Are you ready for today's adventure?
-        </div>
-    </div>
-""", unsafe_allow_html=True)
-
+elif st.session_state['role'] == 'student':
+    st.markdown("<h3 style='text-align: center; color: #0984e3;'>🎒 Student Login</h3>", unsafe_allow_html=True)
+    
+    class_code_input = st.text_input("🔑 Enter your Class Code:").strip().upper()
+    
+    if class_code_input:
+        # Lấy thông tin lớp từ Database
+        class_res = supabase.table("classes").select("*").eq("class_code", class_code_input).execute()
+        
+        if not class_res.data:
+            st.error("❌ Class Code not found!")
+        else:
+            class_name = class_res.data[0]['class_name']
+            st.success(f"🏫 Found class: **{class_name}**")
+            
+            # Kéo toàn bộ học sinh của lớp đó từ Database về
+            students_res = supabase.table("students").select("*").eq("class_code", class_code_input).execute()
+            students_in_class = students_res.data
+            
+            if len(students_in_class) == 0:
+                st.warning("No students added to this class yet!")
+            else:
+                student_options = ["👇 Click here..."] + [s['student_name'] for s in students_in_class]
+                selected_name = st.selectbox("Who are you?", options=student_options)
+                # BƯỚC 3: VÀO GIAO DIỆN HỌC TẬP
+                if selected_name != "👇 Click here...":
+                    st.markdown("---")
+                    
+                    # Lấy thông tin học sinh (để lấy avatar)
+                    student_info = next(item for item in students_in_class if item["student_name"] == selected_name)
+                    avatar_src = f"data:image/jpeg;base64,{student_info['avatar']}" if student_info['avatar'] else "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+                    
+                    # Dùng Flexbox gộp chung Avatar và Bong bóng chat để căn giữa tuyệt đối
+                    st.markdown(f"""
+                        <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 10px;">
+                            <img src="{avatar_src}" style="width: 110px; height: 110px; border-radius: 50%; object-fit: cover; border: 4px solid #0984e3; box-shadow: 0 4px 10px rgba(0,0,0,0.15); flex-shrink: 0;">
+                            <div style="background-color: rgba(0, 184, 148, 0.15); border-left: 6px solid #00b894; padding: 18px 20px; border-radius: 12px; flex-grow: 1; color: #2d3436; font-size: 18px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                                🎉 Hello <strong style="color: #00b894; font-size: 20px;">{selected_name}</strong>! Let's complete today's missions!
+                            </div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                 
 # --- KHU VỰC CHỌN NHIỆM VỤ ---
 st.markdown("### 🎯 CHOOSE YOUR MISSION")
 
