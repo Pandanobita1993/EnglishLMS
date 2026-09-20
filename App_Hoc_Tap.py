@@ -168,13 +168,24 @@ if st.session_state['role'] is None:
 # =========================================================================
 st.markdown(f"<h1 style='text-align: center; font-size: 45px;'>🚀 WELCOME TO CAMBRIDGE KIDS</h1>", unsafe_allow_html=True)
 
-# --- KHUNG HIỂN THỊ AVATAR VÀ BONG BÓNG CHAT ---
-# Khai báo tên mặc định nếu học sinh chưa đăng nhập
-selected_name = st.session_state.get('student_name', 'Xu')
+# --- TẠO KHUNG CHỌN TÊN HỌC VIÊN ---
+st.markdown("### 👤 WHO IS PLAYING TODAY?")
 
-avatar_src = "https://cdn-icons-png.flaticon.com/512/3048/3048122.png" 
+col_name, _ = st.columns([1, 2]) # Ép form chọn tên nhỏ lại cho đẹp
+with col_name:
+    selected_name = st.selectbox("Chọn tên của bé:", ["Xu", "Nu", "Khách"])
+
+# Logic tự động thay đổi Avatar theo tên học viên
+if selected_name == "Xu":
+    avatar_src = "https://cdn-icons-png.flaticon.com/512/3048/3048122.png" # Link tạm cho Xu
+elif selected_name == "Nu":
+    avatar_src = "https://cdn-icons-png.flaticon.com/512/3048/3048205.png" # Link tạm cho Nu
+else:
+    avatar_src = "https://cdn-icons-png.flaticon.com/512/149/149071.png" # Link mặc định
+
+# --- KHUNG HIỂN THỊ AVATAR VÀ BONG BÓNG CHAT ---
 st.markdown(f"""
-    <div class="chat-container" style="display: flex; align-items: center; gap: 20px; margin-bottom: 25px;">
+    <div class="chat-container" style="display: flex; align-items: center; gap: 20px; margin-bottom: 25px; margin-top: 15px;">
         <img src="{avatar_src}" style="width: 110px; height: 110px; border-radius: 50%; object-fit: cover; border: 4px solid #0984e3; box-shadow: 0 4px 10px rgba(0,0,0,0.15); flex-shrink: 0;">
         <div class="chat-bubble" style="background-color: rgba(0, 184, 148, 0.15); border-left: 6px solid #00b894; padding: 18px 20px; border-radius: 12px; flex-grow: 1; color: #2d3436; font-size: 18px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
             🎉 Hello <strong style="color: #00b894; font-size: 22px;">{selected_name}</strong>! Are you ready for today's adventure?
