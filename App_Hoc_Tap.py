@@ -169,320 +169,298 @@ if st.session_state['role'] is None:
 elif st.session_state['role'] == 'student':
     import random, string, json
     
-    # ---------------------------------------------------------------------
-    # KHAI BÁO CÁC HÀM BÀI TẬP (NÊN ĐỂ TRÊN CÙNG ĐỂ STREAMLIT DỄ QUẢN LÝ)
-    # ---------------------------------------------------------------------
-    @st.fragment
-    def run_ex1_dynamic(q_data, idx):
-        st.markdown("### 🧩 EXERCISE 1: WORD PUZZLE")
-        st.markdown("👉 **How to play:** Tap the letters below to spell the correct word!")
-        st.info(f"💡 **Hint:** {q_data['question']}")
-        correct_word = str(q_data['answer']).upper().strip().replace(" ", "")
-        pool_key = f"ex1_pool_{idx}"
-        ans_key = f"ex1_ans_{idx}"
-        if pool_key not in st.session_state:
-            chars = list(correct_word)
-            random.shuffle(chars)
-            st.session_state[pool_key] = [{'id': i, 'char': c, 'used': False} for i, c in enumerate(chars)]
-            st.session_state[ans_key] = []
-        pool = st.session_state[pool_key]
-        answer = st.session_state[ans_key]
-        html_boxes = "<div style='display: flex; gap: 8px; justify-content: center; margin: 10px 0 20px 0; flex-wrap: wrap;'>"
-        for i in range(len(correct_word)):
-            if i < len(answer):
-                char = answer[i]['char']
-                html_boxes += f"<div style='width: 45px; height: 50px; border: 2px solid #0984e3; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; background-color: #e3f2fd; color: #2d3436; box-shadow: 0 2px 5px rgba(0,0,0,0.1);'>{char}</div>"
-            else:
-                html_boxes += "<div style='width: 45px; height: 50px; border: 2px dashed #b2bec3; border-radius: 8px; background-color: rgba(255,255,255,0.5);'></div>"
-        html_boxes += "</div>"
-        st.markdown(html_boxes, unsafe_allow_html=True)
-        ctrl_col1, ctrl_col2, ctrl_col3, ctrl_col4 = st.columns([1, 2, 2, 1])
-        with ctrl_col2:
-            if st.button("⌫ Delete", key=f"del_{idx}", use_container_width=True, disabled=len(answer) == 0):
-                last_item = answer.pop()
-                for p in pool:
-                    if p['id'] == last_item['id']: p['used'] = False
-                st.rerun()
-        with ctrl_col3:
-            if st.button("↻ Reset", key=f"res_{idx}", use_container_width=True, disabled=len(answer) == 0):
-                for p in pool: p['used'] = False
-                answer.clear()
-                st.rerun()
-        st.markdown("<br>", unsafe_allow_html=True)
-        cols = st.columns(len(correct_word))
-        for i, item in enumerate(pool):
-            with cols[i]:
-                if not item['used']:
-                    if st.button(item['char'], key=f"btn_{idx}_{item['id']}", use_container_width=True, type="primary"):
-                        if len(answer) < len(correct_word):
-                            item['used'] = True
-                            answer.append(item)
-                            st.rerun()
-                else:
-                    st.button(item['char'], key=f"btndis_{idx}_{item['id']}", disabled=True, use_container_width=True)
-        st.markdown("---")
-        if len(answer) == len(correct_word):
-            if "".join([item['char'] for item in answer]) == correct_word:
-                st.success(f"🎉 Awesome! You spelled **{correct_word}** correctly!")
-                st.balloons()
-            else:
-                st.error("❌ Not quite! Tap 'Delete' or 'Reset' to try again!")
-
-    @st.fragment
-    def run_ex2_dynamic(q_data, idx):
-        st.markdown("### 📝 EXERCISE 2: FILL IN THE BLANK")
-        st.info("Tap the correct word below to fill in the blank!")
-        base_q = str(q_data['question'])
-        correct_ans = str(q_data['answer']).strip()
-        raw_opts = str(q_data['options']).split(',')
-        opts = [o.strip() for o in raw_opts if o.strip()]
-        if correct_ans not in opts: opts.append(correct_ans) 
-        sel_key = f"ex2_sel_{idx}"
-        if sel_key not in st.session_state:
-            random.shuffle(opts)
-            st.session_state[f"ex2_opts_{idx}"] = opts
-            st.session_state[sel_key] = None
-            st.session_state[f"ex2_done_{idx}"] = False
-        current_word = st.session_state[sel_key] if st.session_state[sel_key] else "..."
-        blank_color = "#0984e3" if st.session_state[sel_key] else "#b2bec3"
-        display_q = base_q.replace('___________', f'<span style="color:{blank_color}; border:2px dashed {blank_color}; background:#fff; padding:2px 12px; border-radius:8px;">{current_word}</span>')
-        st.markdown(f"<div style='font-size:18px; background:rgba(255,255,255,0.7); padding:18px; border-radius:12px; text-align:center; margin-bottom:20px;'>{display_q}</div>", unsafe_allow_html=True)
-        if not st.session_state[f"ex2_done_{idx}"]:
-            cols = st.columns(len(st.session_state[f"ex2_opts_{idx}"]))
-            for i, opt in enumerate(st.session_state[f"ex2_opts_{idx}"]):
-                with cols[i]:
-                    is_chosen = (st.session_state[sel_key] == opt)
-                    if st.button(f"✨ [{opt}]" if is_chosen else f"📦 {opt}", key=f"e2b_{idx}_{i}", use_container_width=True):
-                        st.session_state[sel_key] = opt
-                        st.rerun()
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("🚀 SUBMIT ANSWER", key=f"e2s_{idx}", use_container_width=True, type="primary"):
-                if not st.session_state[sel_key]:
-                    st.warning("⚠️ Please select a word first!")
-                else:
-                    if st.session_state[sel_key] == correct_ans:
-                        st.session_state[f"ex2_done_{idx}"] = True
-                        st.rerun()
-                    else:
-                        st.error(f"❌ Oops, '{st.session_state[sel_key]}' is incorrect.")
-        else:
-            st.success(f"✅ Perfect! The correct answer is: **{correct_ans}**")
-            st.balloons()
-
-    @st.fragment
-    def run_ex3_dynamic(all_qs, idx):
-        st.markdown("### 🔗 EXERCISE 3: MATCHING")
-        st.info("Tap an item in COLUMN A, then tap its match in COLUMN B.")
-        ex3_qs = [q for q in all_qs if q['ex_type'] == 'Ex3']
-        if not ex3_qs:
-            st.error("Không đủ dữ liệu tạo bài nối.")
-            return
-        matching_pairs = {q['question']: q['answer'] for q in ex3_qs}
-        if f'ex3_lefts_{idx}' not in st.session_state:
-            lefts = list(matching_pairs.keys())
-            rights = list(matching_pairs.values())
-            random.shuffle(lefts)
-            random.shuffle(rights)
-            st.session_state[f'ex3_lefts_{idx}'] = lefts
-            st.session_state[f'ex3_rights_{idx}'] = rights
-            st.session_state[f'ex3_sl_{idx}'] = None
-            st.session_state[f'ex3_sr_{idx}'] = None
-            st.session_state[f'ex3_done_{idx}'] = []
-        if st.session_state[f'ex3_sl_{idx}'] and st.session_state[f'ex3_sr_{idx}']:
-            l_val = st.session_state[f'ex3_sl_{idx}']
-            r_val = st.session_state[f'ex3_sr_{idx}']
-            if matching_pairs[l_val] == r_val:
-                st.session_state[f'ex3_done_{idx}'].append(l_val)
-                st.toast("🎉 Correct Match!", icon="✅")
-            else:
-                st.toast("❌ Incorrect Match!", icon="🚨")
-            st.session_state[f'ex3_sl_{idx}'] = None
-            st.session_state[f'ex3_sr_{idx}'] = None
-            st.rerun()
-        col_a, col_b = st.columns(2)
-        with col_a:
-            st.markdown("<h5 style='text-align: center; color: #d63031;'>🔹 COLUMN A</h5>", unsafe_allow_html=True)
-            for item in st.session_state[f'ex3_lefts_{idx}']:
-                is_done = item in st.session_state[f'ex3_done_{idx}']
-                is_sel = item == st.session_state[f'ex3_sl_{idx}']
-                if is_done:
-                    st.button(f"✅ {item}", key=f"LA_{idx}_{item}", disabled=True, use_container_width=True)
-                elif is_sel:
-                    if st.button(f"🟡 {item}", key=f"LA_{idx}_{item}", type="primary", use_container_width=True):
-                        st.session_state[f'ex3_sl_{idx}'] = None; st.rerun()
-                else:
-                    if st.button(f"🟦 {item}", key=f"LA_{idx}_{item}", use_container_width=True):
-                        st.session_state[f'ex3_sl_{idx}'] = item; st.rerun()
-        with col_b:
-            st.markdown("<h5 style='text-align: center; color: #0984e3;'>🔸 COLUMN B</h5>", unsafe_allow_html=True)
-            for item in st.session_state[f'ex3_rights_{idx}']:
-                parent_key = [k for k, v in matching_pairs.items() if v == item][0]
-                is_done = parent_key in st.session_state[f'ex3_done_{idx}']
-                is_sel = item == st.session_state[f'ex3_sr_{idx}']
-                if is_done:
-                    st.button(f"✅ {item}", key=f"LB_{idx}_{item}", disabled=True, use_container_width=True)
-                elif is_sel:
-                    if st.button(f"🟡 {item}", key=f"LB_{idx}_{item}", type="primary", use_container_width=True):
-                        st.session_state[f'ex3_sr_{idx}'] = None; st.rerun()
-                else:
-                    if st.button(f"🟧 {item}", key=f"LB_{idx}_{item}", use_container_width=True):
-                        st.session_state[f'ex3_sr_{idx}'] = item; st.rerun()
-        if len(st.session_state[f'ex3_done_{idx}']) == len(matching_pairs):
-            st.success("🎉 Awesome! You matched everything perfectly!")
-            st.balloons()
-
-    @st.fragment
-    def run_ex4_dynamic(all_qs, idx):
-        st.markdown("### 🕵️‍♀️ EXERCISE 4: THE BIG BOSS WORD SEARCH")
-        st.info("Swipe through the letters in the grid to find the hidden words. Drag and drop them into the correct pictures!")
-        ex4_qs = [q for q in all_qs if q['ex_type'] == 'Ex4']
-        if len(ex4_qs) > 8: ex4_qs = random.sample(ex4_qs, 8)
-        target_words = [q['answer'].upper().replace(" ", "") for q in ex4_qs]
-        pic_mapping = {q['question']: q['answer'].upper().replace(" ", "") for q in ex4_qs}
-        def generate_grid(words, size=12):
-            grid = [['' for _ in range(size)] for _ in range(size)]
-            for word in words:
-                placed = False
-                attempts = 0
-                while not placed and attempts < 100:
-                    direction = random.choice([(0,1), (1,0)]) 
-                    r = random.randint(0, size-1) if direction == (0,1) else random.randint(0, size-len(word))
-                    c = random.randint(0, size-len(word)) if direction == (0,1) else random.randint(0, size-1)
-                    fit = True
-                    for i, char in enumerate(word):
-                        if grid[r + direction[0]*i][c + direction[1]*i] not in ('', char): fit = False; break
-                    if fit:
-                        for i, char in enumerate(word): grid[r + direction[0]*i][c + direction[1]*i] = char
-                        placed = True
-                    attempts += 1
-            for r in range(size):
-                for c in range(size):
-                    if grid[r][c] == '': grid[r][c] = random.choice(string.ascii_uppercase)
-            return grid
-        grid_data = generate_grid(target_words)
-        js_grid = json.dumps(grid_data)
-        js_targets = json.dumps(target_words)
-        js_mapping = json.dumps(pic_mapping)
-        html_game_code = f"""
-        <!DOCTYPE html>
-        <html lang="en">
-        <head><meta charset="UTF-8">
-        <style>
-            body {{ font-family: 'Nunito', sans-serif; text-align: center; user-select: none; background: transparent; padding-bottom: 30px;}}
-            .grid {{ display: grid; grid-template-columns: repeat(12, 28px); gap: 4px; justify-content: center; margin: 15px auto; touch-action: none;}}
-            .cell {{ width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; background: #fff; border: 2px solid #dfe6e9; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: crosshair; transition: transform 0.1s; }}
-            .cell.selecting {{ background: #ffeaa7; transform: scale(1.1); box-shadow: 0 0 10px #fdcb6e; border-color: #fdcb6e;}}
-            .cell.found {{ background: #55efc4; color: white; border-color: #00b894; opacity: 0.8;}}
-            .bank {{ min-height: 50px; padding: 10px; border: 2px dashed #b2bec3; border-radius: 15px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 15px 0; background: rgba(255,255,255,0.7);}}
-            .pill {{ padding: 6px 15px; background: linear-gradient(135deg, #6c5ce7, #a29bfe); color: white; border-radius: 20px; font-weight: bold; font-size: 14px; cursor: grab; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }}
-            .pictures {{ display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin: auto; }}
-            .pic-box {{ width: 75px; background: white; border-radius: 12px; padding: 8px; display: flex; flex-direction: column; align-items: center; border: 3px solid transparent;}}
-            .pic {{ font-size: 35px; margin-bottom: 5px; }}
-            .drop-zone {{ width: 100%; height: 30px; background: #f1f2f6; border: 2px dashed #ced6e0; border-radius: 6px; display: flex; align-items: center; justify-content: center;}}
-            .drop-zone.drag-over {{ background: #dfe6e9; border-color: #0984e3; transform: scale(1.05);}}
-            .btn-check {{ margin-top: 25px; padding: 12px 30px; background: linear-gradient(90deg, #ff6b6b, #feca57); color: white; border: none; border-radius: 25px; font-size: 18px; font-weight: bold; cursor: pointer; }}
-            #message {{ margin-top: 15px; font-weight: bold; font-size: 18px; }}
-        </style>
-        </head>
-        <body>
-        <div class="grid" id="grid"></div>
-        <h4 style="color:#6c5ce7; margin-bottom: 5px;">Drag words to pictures:</h4>
-        <div class="bank" id="bank"></div>
-        <div class="pictures" id="pictures"></div>
-        <button class="btn-check" onclick="checkAnswers()">🚀 CHECK MY ANSWERS</button>
-        <div id="message"></div>
+# ---------------------------------------------------------------------
+# KHAI BÁO CÁC HÀM BÀI TẬP - PHIÊN BẢN JAVASCRIPT SIÊU MƯỢT (NO LAG)
+# ---------------------------------------------------------------------
+@st.fragment
+def run_ex1_dynamic(q_data, idx):
+    st.markdown("### 🧩 EXERCISE 1: WORD PUZZLE")
+    st.info(f"💡 **Hint:** {q_data['question']}")
+    
+    correct_word = str(q_data['answer']).upper().strip().replace(" ", "")
+    chars = list(correct_word)
+    random.shuffle(chars)
+    
+    js_word = json.dumps(correct_word)
+    js_chars = json.dumps(chars)
+    
+    html_code = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <style>
+        body {{ font-family: 'Nunito', sans-serif; text-align: center; user-select: none; background: transparent; margin: 0; padding: 10px; }}
+        .slots {{ display: flex; gap: 8px; justify-content: center; margin: 10px 0 20px 0; flex-wrap: wrap; min-height: 54px; }}
+        .slot {{ width: 45px; height: 50px; border: 2px dashed #b2bec3; border-radius: 8px; background-color: rgba(255,255,255,0.5); display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; color: #2d3436; cursor: pointer; transition: all 0.2s; }}
+        .slot.filled {{ border: 2px solid #0984e3; background-color: #e3f2fd; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }}
+        .keyboard {{ display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; max-width: 400px; margin: 0 auto; }}
+        .key-btn {{ width: 45px; height: 50px; background: linear-gradient(135deg, #ff7675, #d63031); color: white; border: none; border-radius: 8px; font-size: 22px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 0 #b2bec3; transition: all 0.1s; }}
+        .key-btn:active {{ transform: translateY(4px); box-shadow: 0 0 0 #b2bec3; }}
+        .key-btn:disabled {{ background: #dfe6e9; color: #b2bec3; box-shadow: none; cursor: not-allowed; transform: none; }}
+        .controls {{ margin: 20px 0; display: flex; gap: 15px; justify-content: center; }}
+        .ctrl-btn {{ padding: 10px 20px; font-size: 16px; font-weight: bold; border-radius: 20px; border: none; cursor: pointer; color: white; }}
+        .btn-del {{ background: #feca57; }} .btn-reset {{ background: #a29bfe; }}
+        #msg {{ margin-top: 15px; font-size: 18px; font-weight: bold; height: 30px; }}
+    </style>
+    </head>
+    <body>
+        <div class="slots" id="slots"></div>
+        <div class="controls">
+            <button class="ctrl-btn btn-del" onclick="deleteLast()">⌫ Delete</button>
+            <button class="ctrl-btn btn-reset" onclick="resetAll()">↻ Reset</button>
+        </div>
+        <div class="keyboard" id="keyboard"></div>
+        <div id="msg"></div>
 
         <script>
-            const gridData = {js_grid};
-            const targetWords = {js_targets};
-            const picMapping = {js_mapping};
-            let foundWords = [];
-            const gridEl = document.getElementById('grid');
-            gridData.forEach(row => {{
-                row.forEach(letter => {{
-                    let cell = document.createElement('div');
-                    cell.className = 'cell'; cell.innerText = letter;
-                    gridEl.appendChild(cell);
+            const targetWord = {js_word};
+            const initialChars = {js_chars};
+            let answer = [];
+            let keyStates = initialChars.map((c, i) => ({{ id: i, char: c, used: false }}));
+
+            function render() {{
+                // Render Slots
+                const slotsEl = document.getElementById('slots');
+                slotsEl.innerHTML = '';
+                for (let i = 0; i < targetWord.length; i++) {{
+                    let div = document.createElement('div');
+                    div.className = 'slot' + (answer[i] ? ' filled' : '');
+                    div.innerText = answer[i] ? answer[i].char : '';
+                    div.onclick = () => {{ if(answer[i] && i === answer.length - 1) deleteLast(); }};
+                    slotsEl.appendChild(div);
+                }}
+                
+                // Render Keyboard
+                const kbEl = document.getElementById('keyboard');
+                kbEl.innerHTML = '';
+                keyStates.forEach(k => {{
+                    let btn = document.createElement('button');
+                    btn.className = 'key-btn';
+                    btn.innerText = k.char;
+                    btn.disabled = k.used;
+                    btn.onclick = () => {{
+                        if (answer.length < targetWord.length) {{
+                            k.used = true;
+                            answer.push(k);
+                            checkWin();
+                            render();
+                        }}
+                    }};
+                    kbEl.appendChild(btn);
                 }});
-            }});
-            let isSelecting = false; let currentSelection = []; let selectedCells = [];
-            function startSelect(target) {{
-                if(target.classList.contains('cell') && !target.classList.contains('found')) {{
-                    isSelecting = true; target.classList.add('selecting');
-                    currentSelection.push(target.innerText); selectedCells.push(target);
+            }}
+
+            function deleteLast() {{
+                if (answer.length > 0) {{
+                    let last = answer.pop();
+                    keyStates.find(k => k.id === last.id).used = false;
+                    document.getElementById('msg').innerHTML = '';
+                    render();
                 }}
             }}
-            function moveSelect(target) {{
-                if(isSelecting && target.classList.contains('cell') && !target.classList.contains('found') && !selectedCells.includes(target)) {{
-                    target.classList.add('selecting'); currentSelection.push(target.innerText); selectedCells.push(target);
-                }}
+
+            function resetAll() {{
+                answer = [];
+                keyStates.forEach(k => k.used = false);
+                document.getElementById('msg').innerHTML = '';
+                render();
             }}
-            function endSelect() {{
-                if(isSelecting) {{
-                    isSelecting = false;
-                    let wordStr = currentSelection.join('');
-                    let wordStrRev = currentSelection.slice().reverse().join(''); 
-                    let matchedWord = null;
-                    if(targetWords.includes(wordStr) && !foundWords.includes(wordStr)) matchedWord = wordStr;
-                    else if (targetWords.includes(wordStrRev) && !foundWords.includes(wordStrRev)) matchedWord = wordStrRev;
-                    if (matchedWord) {{
-                        selectedCells.forEach(c => {{ c.classList.remove('selecting'); c.classList.add('found'); }});
-                        foundWords.push(matchedWord); createPill(matchedWord); 
+
+            function checkWin() {{
+                if (answer.length === targetWord.length) {{
+                    let currentStr = answer.map(a => a.char).join('');
+                    if (currentStr === targetWord) {{
+                        document.getElementById('msg').innerHTML = "<span style='color:#00b894;'>🎉 Awesome! You spelled it correctly!</span>";
                     }} else {{
-                        selectedCells.forEach(c => c.classList.remove('selecting'));
+                        document.getElementById('msg').innerHTML = "<span style='color:#d63031;'>❌ Not quite! Tap 'Delete' to try again!</span>";
                     }}
-                    currentSelection = []; selectedCells = [];
                 }}
             }}
-            gridEl.addEventListener('mousedown', (e) => startSelect(e.target));
-            gridEl.addEventListener('mouseover', (e) => moveSelect(e.target));
-            window.addEventListener('mouseup', endSelect);
-            gridEl.addEventListener('touchstart', (e) => {{ let t = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY); if(t) startSelect(t); e.preventDefault(); }}, {{passive: false}});
-            gridEl.addEventListener('touchmove', (e) => {{ let t = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY); if(t) moveSelect(t); e.preventDefault(); }}, {{passive: false}});
-            window.addEventListener('touchend', endSelect);
-            const picsEl = document.getElementById('pictures');
-            Object.keys(picMapping).forEach(emoji => {{
-                let box = document.createElement('div'); box.className = 'pic-box';
-                let pic = document.createElement('div'); pic.className = 'pic'; pic.innerText = emoji;
-                let dropZone = document.createElement('div'); dropZone.className = 'drop-zone'; dropZone.dataset.target = picMapping[emoji];
-                dropZone.addEventListener('dragover', (e) => {{ e.preventDefault(); dropZone.classList.add('drag-over'); }});
-                dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-                dropZone.addEventListener('drop', (e) => {{
-                    e.preventDefault(); dropZone.classList.remove('drag-over');
-                    let pill = document.getElementById(e.dataTransfer.getData('text'));
-                    if (pill) {{ dropZone.innerHTML = ''; dropZone.appendChild(pill); dropZone.style.border = 'none'; dropZone.style.background = 'transparent';}}
-                }});
-                box.appendChild(pic); box.appendChild(dropZone); picsEl.appendChild(box);
-            }});
-            const bankEl = document.getElementById('bank');
-            bankEl.addEventListener('dragover', (e) => e.preventDefault());
-            bankEl.addEventListener('drop', (e) => {{ e.preventDefault(); let pill = document.getElementById(e.dataTransfer.getData('text')); if(pill) bankEl.appendChild(pill); }});
-            function createPill(word) {{
-                let pill = document.createElement('div'); pill.className = 'pill'; pill.innerText = word; pill.id = 'pill_' + word; pill.draggable = true;
-                pill.addEventListener('dragstart', (e) => e.dataTransfer.setData('text', e.target.id));
-                bankEl.appendChild(pill);
-            }}
-            function checkAnswers() {{
-                let allCorrect = true; let filledCount = 0;
-                document.querySelectorAll('.drop-zone').forEach(zone => {{
-                    let pill = zone.querySelector('.pill');
-                    if(pill) {{
-                        filledCount++;
-                        if(pill.innerText !== zone.dataset.target) {{ allCorrect = false; zone.parentElement.style.borderColor = "#ff7675"; }} 
-                        else {{ zone.parentElement.style.borderColor = "#55efc4"; }}
-                    }} else {{ allCorrect = false; }}
-                }});
-                let msg = document.getElementById('message');
-                if(filledCount < Object.keys(picMapping).length) msg.innerHTML = "<span style='color:#fdcb6e;'>⚠️ Nu says: You haven't found all words yet!</span>";
-                else if (!allCorrect) msg.innerHTML = "<span style='color:#ff7675;'>❌ Oops, some matches are incorrect. Try again!</span>";
-                else msg.innerHTML = "<span style='color:#00b894;'>🎉 EXCELLENT! You found and matched everything perfectly! 🏆</span>";
-            }}
+            render();
         </script>
-        </body>
-        </html>
-        """
-        import streamlit.components.v1 as components
-        components.html(html_game_code, height=1050)
+    </body>
+    </html>
+    """
+    import streamlit.components.v1 as components
+    components.html(html_code, height=350)
+
+@st.fragment
+def run_ex2_dynamic(q_data, idx):
+    st.markdown("### 📝 EXERCISE 2: FILL IN THE BLANK")
+    base_q = str(q_data['question'])
+    correct_ans = str(q_data['answer']).strip()
+    raw_opts = str(q_data['options']).split(',')
+    opts = [o.strip() for o in raw_opts if o.strip()]
+    if correct_ans not in opts: opts.append(correct_ans)
+    random.shuffle(opts)
+    
+    js_q = json.dumps(base_q)
+    js_ans = json.dumps(correct_ans)
+    js_opts = json.dumps(opts)
+    
+    html_code = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <style>
+        body {{ font-family: 'Nunito', sans-serif; text-align: center; background: transparent; padding: 10px; margin: 0; }}
+        .question-box {{ font-size: 20px; background: rgba(255,255,255,0.7); padding: 25px; border-radius: 12px; margin-bottom: 25px; font-weight: bold; color: #2d3436; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }}
+        .blank {{ display: inline-block; min-width: 80px; height: 30px; border-bottom: 3px dashed #b2bec3; margin: 0 10px; color: #0984e3; text-align: center; transition: all 0.2s; }}
+        .blank.filled {{ border-bottom: 3px solid #0984e3; }}
+        .opts {{ display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; }}
+        .opt-btn {{ padding: 12px 25px; font-size: 18px; font-weight: bold; border-radius: 30px; border: 2px solid #74b9ff; background: white; color: #0984e3; cursor: pointer; transition: all 0.1s; box-shadow: 0 4px 0 #74b9ff; }}
+        .opt-btn:active {{ transform: translateY(4px); box-shadow: 0 0 0 #74b9ff; }}
+        .opt-btn.selected {{ background: #0984e3; color: white; }}
+        .btn-check {{ margin-top: 30px; padding: 12px 35px; background: linear-gradient(90deg, #ff6b6b, #feca57); color: white; border: none; border-radius: 25px; font-size: 18px; font-weight: bold; cursor: pointer; box-shadow: 0 5px 15px rgba(255,107,107,0.4); }}
+        #msg {{ margin-top: 15px; font-size: 18px; font-weight: bold; }}
+    </style>
+    </head>
+    <body>
+        <div class="question-box" id="q-box"></div>
+        <div class="opts" id="opts-container"></div>
+        <button class="btn-check" onclick="checkAnswer()">🚀 SUBMIT ANSWER</button>
+        <div id="msg"></div>
+
+        <script>
+            const qText = {js_q};
+            const correctAns = {js_ans};
+            const options = {js_opts};
+            let selectedOpt = null;
+
+            function render() {{
+                let displayWord = selectedOpt ? selectedOpt : "";
+                let htmlQ = qText.replace('___________', `<span class="blank ${{selectedOpt ? 'filled' : ''}}">${{displayWord}}</span>`);
+                document.getElementById('q-box').innerHTML = htmlQ;
+                
+                const optsEl = document.getElementById('opts-container');
+                optsEl.innerHTML = '';
+                options.forEach(opt => {{
+                    let btn = document.createElement('button');
+                    btn.className = 'opt-btn' + (selectedOpt === opt ? ' selected' : '');
+                    btn.innerText = opt;
+                    btn.onclick = () => {{ selectedOpt = opt; render(); document.getElementById('msg').innerHTML=''; }};
+                    optsEl.appendChild(btn);
+                }});
+            }}
+
+            function checkAnswer() {{
+                if (!selectedOpt) {{
+                    document.getElementById('msg').innerHTML = "<span style='color:#fdcb6e;'>⚠️ Please select a word first!</span>";
+                    return;
+                }}
+                if (selectedOpt === correctAns) {{
+                    document.getElementById('msg').innerHTML = "<span style='color:#00b894;'>✅ Perfect! That's correct!</span>";
+                    document.querySelectorAll('.opt-btn').forEach(b => b.onclick = null);
+                }} else {{
+                    document.getElementById('msg').innerHTML = "<span style='color:#ff7675;'>❌ Oops, try again!</span>";
+                }}
+            }}
+            render();
+        </script>
+    </body>
+    </html>
+    """
+    import streamlit.components.v1 as components
+    components.html(html_code, height=350)
+
+@st.fragment
+def run_ex3_dynamic(all_qs, idx):
+    st.markdown("### 🔗 EXERCISE 3: MATCHING")
+    ex3_qs = [q for q in all_qs if q['ex_type'] == 'Ex3']
+    if not ex3_qs:
+        st.error("Không đủ dữ liệu tạo bài nối.")
+        return
+        
+    lefts = [q['question'] for q in ex3_qs]
+    rights = [q['answer'] for q in ex3_qs]
+    random.shuffle(lefts)
+    random.shuffle(rights)
+    
+    js_pairs = json.dumps({q['question']: q['answer'] for q in ex3_qs})
+    js_lefts = json.dumps(lefts)
+    js_rights = json.dumps(rights)
+
+    html_code = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <style>
+        body {{ font-family: 'Nunito', sans-serif; text-align: center; user-select: none; margin: 0; padding: 10px; }}
+        .match-container {{ display: flex; justify-content: space-around; max-width: 600px; margin: 0 auto; }}
+        .col {{ display: flex; flex-direction: column; gap: 15px; width: 45%; }}
+        .m-btn {{ padding: 15px; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.2s; border: 3px solid transparent; }}
+        .btn-a {{ background: #fab1a0; color: #d63031; box-shadow: 0 4px 0 #ff7675; }}
+        .btn-b {{ background: #81ecec; color: #0984e3; box-shadow: 0 4px 0 #00cec9; }}
+        .m-btn:active {{ transform: translateY(4px); box-shadow: 0 0 0 transparent; }}
+        .m-btn.selected {{ border-color: #ffeaa7; box-shadow: 0 0 15px #ffeaa7; transform: scale(1.05); }}
+        .m-btn.done {{ background: #55efc4; color: white; border-color: #00b894; box-shadow: none; cursor: default; transform: none; opacity: 0.8; }}
+        #msg {{ margin-top: 25px; font-size: 18px; font-weight: bold; height: 30px; }}
+    </style>
+    </head>
+    <body>
+        <div class="match-container">
+            <div class="col" id="col-a"></div>
+            <div class="col" id="col-b"></div>
+        </div>
+        <div id="msg"></div>
+
+        <script>
+            const pairs = {js_pairs};
+            const arrA = {js_lefts};
+            const arrB = {js_rights};
+            let selA = null; let selB = null;
+            let doneA = []; let doneB = [];
+
+            function render() {{
+                const colA = document.getElementById('col-a');
+                colA.innerHTML = '<h4 style="color: #d63031; margin-bottom: 5px;">COLUMN A</h4>';
+                arrA.forEach(val => {{
+                    let btn = document.createElement('div');
+                    btn.className = 'm-btn btn-a' + (doneA.includes(val) ? ' done' : '') + (selA === val ? ' selected' : '');
+                    btn.innerText = val;
+                    btn.onclick = () => {{
+                        if (!doneA.includes(val)) {{ selA = (selA === val ? null : val); checkMatch(); render(); }}
+                    }};
+                    colA.appendChild(btn);
+                }});
+
+                const colB = document.getElementById('col-b');
+                colB.innerHTML = '<h4 style="color: #0984e3; margin-bottom: 5px;">COLUMN B</h4>';
+                arrB.forEach(val => {{
+                    let btn = document.createElement('div');
+                    btn.className = 'm-btn btn-b' + (doneB.includes(val) ? ' done' : '') + (selB === val ? ' selected' : '');
+                    btn.innerText = val;
+                    btn.onclick = () => {{
+                        if (!doneB.includes(val)) {{ selB = (selB === val ? null : val); checkMatch(); render(); }}
+                    }};
+                    colB.appendChild(btn);
+                }});
+            }}
+
+            function checkMatch() {{
+                if (selA && selB) {{
+                    if (pairs[selA] === selB) {{
+                        doneA.push(selA); doneB.push(selB);
+                        document.getElementById('msg').innerHTML = "<span style='color:#00b894;'>🎉 Correct Match!</span>";
+                    }} else {{
+                        document.getElementById('msg').innerHTML = "<span style='color:#ff7675;'>❌ Incorrect Match! Try again.</span>";
+                    }}
+                    selA = null; selB = null;
+                    
+                    if (doneA.length === arrA.length) {{
+                        document.getElementById('msg').innerHTML = "<span style='color:#00b894;'>🏆 Awesome! You matched everything!</span>";
+                    }}
+                }} else {{
+                    document.getElementById('msg').innerHTML = "";
+                }}
+            }}
+            render();
+        </script>
+    </body>
+    </html>
+    """
+    import streamlit.components.v1 as components
+    components.html(html_code, height=450)
 
     # ---------------------------------------------------------------------
     # GIAO DIỆN ĐĂNG NHẬP & LUỒNG HỌC TẬP CHÍNH
