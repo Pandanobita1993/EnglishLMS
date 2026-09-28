@@ -45,11 +45,10 @@ def get_questions(book, unit, topic):
     return supabase.table("questions").select("*").eq("book", book).eq("unit", unit).eq("topic", topic).execute().data
 
 @st.cache_data(ttl=300)
-def get_available_missions():
-    # Quét toàn bộ kho câu hỏi, nhưng chỉ lấy 3 cột (book, unit, topic) để tiết kiệm RAM
-    res = supabase.table("questions").select("book, unit, topic").execute()
+def get_curriculum_structure():
+    # Chỉ quét đúng bảng danh mục khung chương trình, tốc độ phản hồi tính bằng mili-giây
+    res = supabase.table("curriculum").select("book, unit, topic").execute()
     if res.data:
-        # Dùng Pandas để lọc bỏ các dòng trùng lặp (ví dụ 100 câu của Unit 1 sẽ gộp lại thành 1 dòng Unit 1)
         return pd.DataFrame(res.data).drop_duplicates()
     return pd.DataFrame()
     
@@ -391,92 +390,58 @@ elif st.session_state['role'] == 'student':
                     st.markdown("---")
 
                     # =========================================================
-                    # CƠ CHẾ ĐIỀU HƯỚNG 3 TRẠNG THÁI (MENU / PLAYING / FINISHED)
+                    # CƠ CHẾ GIẤU MENU (CHỈ HIỆN 1 TRONG 2 TRẠNG THÁI)
                     # =========================================================
-                    if st.session_state['mission_completed']:
-                        st.balloons()
-                        st.markdown("<h2 style='text-align: center; color: #00b894;'>🎉 RAINBOW UNLOCKED! 🎉</h2>", unsafe_allow_html=True)
-                        st.info("You have successfully completed all challenges in this mission!")
-                        if st.button("🚀 CHOOSE ANOTHER MISSION", type="primary", use_container_width=True):
-                            st.session_state['mission_completed'] = False
-                            st.rerun()
-
-                    elif len(st.session_state['playlist']) == 0:
+                    if len(st.session_state['playlist']) == 0:
                         
-                        # --- TRẠNG THÁI 1: CHƯA BẤM START -> HIỆN MENU CHỌN TỪ DB THẬT ---
                         st.markdown("### 🎯 CHOOSE YOUR MISSION")
 
-                        # 1. Gọi dữ liệu cấu trúc thật từ Database (Đã Cache siêu tốc)
-                        df_missions = get_available_missions()
+                        # Gọi dữ liệu từ bảng Khung chương trình chuẩn
+                        df_curriculum = get_curriculum_structure()
                         
-                        if df_missions.empty:
-                            st.warning("📭 Ngân hàng câu hỏi đang trống. Đợi cô giáo nạp bài tập bồ nhé!")
+                        if df_curriculum.empty:
+                            st.warning("📭 Chưa có chương trình học nào được thiết lập. Đợi thầy cô cập nhật nhé!")
                         else:
                             col_b, col_u, col_t = st.columns(3)
                             
-                            # 2. Lọc thông minh liên hoàn: Sách -> Unit -> Topic
+                            # Lọc liên hoàn: Sách -> Unit -> Topic
                             with col_b:
-                                books = sorted(df_missions['book'].dropna().unique().tolist())
+                                books = sorted(df_curriculum['book'].dropna().unique().tolist())
                                 sel_book = st.selectbox("📚 Book:", books)
                                 
                             with col_u:
-                                units = sorted(df_missions[df_missions['book'] == sel_book]['unit'].dropna().unique().tolist())
+                                units = sorted(df_curriculum[df_curriculum['book'] == sel_book]['unit'].dropna().unique().tolist())
                                 sel_unit = st.selectbox("📖 Unit:", units) if units else st.selectbox("📖 Unit:", ["N/A"])
                                 
                             with col_t:
-                                topics = sorted(df_missions[(df_missions['book'] == sel_book) & (df_missions['unit'] == sel_unit)]['topic'].dropna().unique().tolist())
+                                topics = sorted(df_curriculum[(df_curriculum['book'] == sel_book) & (df_curriculum['unit'] == sel_unit)]['topic'].dropna().unique().tolist())
                                 sel_topic = st.selectbox("🌟 Topic:", topics) if topics else st.selectbox("🌟 Topic:", ["N/A"])
 
                             if st.button("🚀 START MISSION", type="primary", use_container_width=True):
                                 with st.spinner("Shuffling questions and preparing missions..."):
-                                try:
-                                    all_qs = get_questions(sel_book, sel_unit, sel_topic)
-                                    
-                                    if not all_qs:
-                                        st.warning("📭 Oops! No missions found for this selection. Please try another topic!")
-                                    else:
-                                        st.session_state['all_questions'] = all_qs
-                                        quick_qs = [q for q in all_qs if q['ex_type'] in ['Ex1', 'Ex2']]
-                                        boss_qs = [q for q in all_qs if q['ex_type'] == 'Ex4']
-                                        has_ex3 = any(q['ex_type'] == 'Ex3' for q in all_qs)
+                                    try:
+                                        # Khi bấm Start, hệ thống mới bắt đầu chui vào kho 'questions' để lấy đúng đề bài
+                                        all_qs = get_questions(sel_book, sel_unit, sel_topic)
                                         
-                                        num_quick = min(8, len(quick_qs))
-                                        selected_playlist = random.sample(quick_qs, num_quick)
-                                        if has_ex3: selected_playlist.append({'ex_type': 'Ex3'}) 
-                                        random.shuffle(selected_playlist)
-                                        if boss_qs: selected_playlist.append({'ex_type': 'Ex4'})
-                                        
-                                        st.session_state['playlist'] = selected_playlist
-                                        st.session_state['current_q'] = 0
-                                        st.rerun()
-                                except Exception as e:
-                                    st.error(f"⚠️ Error fetching missions: {e}")
-
-                    else:
-                        total_q = len(st.session_state['playlist'])
-                        curr_idx = st.session_state['current_q']
-                        current_q_data = st.session_state['playlist'][curr_idx]
-                        
-                        col_nav1, col_nav2, col_nav3 = st.columns([1, 2, 1])
-                        with col_nav2:
-                            btn_label = "FINISH MISSION 🌟" if curr_idx == total_q - 1 else "NEXT MISSION ➔"
-                            if st.button(btn_label, use_container_width=True, type="secondary"):
-                                if curr_idx < total_q - 1:
-                                    st.session_state['current_q'] += 1
-                                    st.rerun()
-                                else:
-                                    st.session_state['mission_completed'] = True
-                                    st.session_state['playlist'] = []
-                                    st.rerun()
-                                    
-                        st.markdown("<br>", unsafe_allow_html=True)
-                        
-                        ex_type = current_q_data.get('ex_type', '')
-                        if ex_type == 'Ex1': run_ex1_dynamic(current_q_data, curr_idx)
-                        elif ex_type == 'Ex2': run_ex2_dynamic(current_q_data, curr_idx)
-                        elif ex_type == 'Ex3': run_ex3_dynamic(st.session_state['all_questions'], curr_idx)
-                        elif ex_type == 'Ex4': run_ex4_dynamic(st.session_state['all_questions'], curr_idx)
-                        else: st.error("⚠️ System cannot recognize this mission type.")
+                                        if not all_qs:
+                                            st.warning("📭 Oops! No missions found for this selection. Please try another topic!")
+                                        else:
+                                            st.session_state['all_questions'] = all_qs
+                                            quick_qs = [q for q in all_qs if q['ex_type'] in ['Ex1', 'Ex2']]
+                                            boss_qs = [q for q in all_qs if q['ex_type'] == 'Ex4']
+                                            has_ex3 = any(q['ex_type'] == 'Ex3' for q in all_qs)
+                                            
+                                            num_quick = min(8, len(quick_qs))
+                                            selected_playlist = random.sample(quick_qs, num_quick)
+                                            if has_ex3: selected_playlist.append({'ex_type': 'Ex3'}) 
+                                            random.shuffle(selected_playlist)
+                                            if boss_qs: selected_playlist.append({'ex_type': 'Ex4'})
+                                            
+                                            st.session_state['playlist'] = selected_playlist
+                                            st.session_state['current_q'] = 0
+                                            st.rerun()
+                                    except Exception as e:
+                                        st.error(f"⚠️ Error fetching missions: {e}")
                 
 # ================= 6. TEACHER PORTAL =================
 elif st.session_state['role'] == 'teacher':
