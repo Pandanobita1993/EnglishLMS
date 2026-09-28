@@ -171,6 +171,9 @@ if st.session_state['role'] is None:
 # =========================================================================
 # 5. STUDENT PORTAL
 # =========================================================================
+# =========================================================================
+# 5. STUDENT PORTAL
+# =========================================================================
 elif st.session_state['role'] == 'student':
     import random, string, json
     
@@ -611,14 +614,17 @@ elif st.session_state['role'] == 'student':
         </body>
         </html>
         """
+        import streamlit.components.v1 as components
         components.html(html_game_code, height=1050)
 
+    # ---------------------------------------------------------------------
+    # GIAO DIỆN ĐĂNG NHẬP & LUỒNG HỌC TẬP CHÍNH
+    # ---------------------------------------------------------------------
     st.markdown("<h3 style='text-align: center; color: #0984e3;'>🎒 Student Login</h3>", unsafe_allow_html=True)
     
     class_code_input = st.text_input("🔑 Enter your Class Code:").strip().upper()
     
     if class_code_input:
-        # Tận dụng RAM Caching siêu tốc thay vì tải trực tiếp
         class_data = get_class_info(class_code_input)
         
         if not class_data:
@@ -627,7 +633,6 @@ elif st.session_state['role'] == 'student':
             class_name = class_data[0]['class_name']
             st.success(f"🏫 Found class: **{class_name}**")
             
-            # Tận dụng RAM Caching lấy danh sách học sinh mượt mà
             students_in_class = get_students_in_class(class_code_input)
             
             if len(students_in_class) == 0:
@@ -636,29 +641,163 @@ elif st.session_state['role'] == 'student':
                 student_options = ["👇 Click here..."] + [s['student_name'] for s in students_in_class]
                 selected_name = st.selectbox("Who are you?", options=student_options)
                 
+                # BƯỚC 3: KIỂM TRA ĐĂNG NHẬP THÀNH CÔNG -> HIỂN THỊ AVATAR NỔI
                 if selected_name != "👇 Click here...":
-                    st.markdown("---")
                     
-                    student_info = next(item for item in students_in_class if item["student_name"] == selected_name)
-                    avatar_src = f"data:image/jpeg;base64,{student_info['avatar']}" if student_info['avatar'] else "https://cdn-icons-png.flaticon.com/512/149/149071.png"
-                    
-                    st.markdown(f"""
-                        <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
-                            <img src="{avatar_src}" style="width: 110px; height: 110px; border-radius: 50%; object-fit: cover; border: 4px solid #0984e3; box-shadow: 0 4px 10px rgba(0,0,0,0.15); flex-shrink: 0;">
-                            <div style="background-color: rgba(0, 184, 148, 0.15); border-left: 6px solid #00b894; padding: 18px 20px; border-radius: 12px; flex-grow: 1; color: #2d3436; font-size: 18px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-                                🎉 Hello <strong style="color: #00b894; font-size: 20px;">{selected_name}</strong>! Let's complete today's missions!
-                            </div>
-                        </div>
-                    """, unsafe_allow_html=True)
-                 
+                    # Biến toàn cục lưu trạng thái bài học (Khởi tạo trước để tính điểm)
                     if 'playlist' not in st.session_state:
                         st.session_state['playlist'] = []
                         st.session_state['current_q'] = 0
                         st.session_state['all_questions'] = []
 
+                    student_info = next(item for item in students_in_class if item["student_name"] == selected_name)
+                    avatar_src = f"data:image/jpeg;base64,{student_info['avatar']}" if student_info['avatar'] else "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+                    
+                    # Tính toán % tiến độ
+                    if len(st.session_state['playlist']) > 0:
+                        total_q = len(st.session_state['playlist'])
+                        curr_idx = st.session_state['current_q']
+                        progress_pct = int(((curr_idx + 1) / total_q) * 100)
+                        progress_text = f"{curr_idx + 1}/{total_q}"
+                        chat_msg = f"🚀 Keep going, {selected_name}!"
+                    else:
+                        progress_pct = 0
+                        progress_text = "Ready"
+                        chat_msg = f"🎉 Hello {selected_name}!"
+
+                    # =========================================================
+                    # CSS & HTML CHO AVATAR NỔI (FLOATING WIDGET) + PROGRESS TRÒN
+                    # =========================================================
+                    floating_html = f"""
+                    <style>
+                        .floating-widget {{
+                            position: fixed;
+                            top: 50%;
+                            left: 3%;
+                            transform: translateY(-50%);
+                            z-index: 99999;
+                            display: flex;
+                            align-items: center;
+                            gap: 15px;
+                            pointer-events: none; /* Tránh block các nút bấm bên dưới */
+                        }}
+                        
+                        /* Thanh progress bo tròn bằng gradient */
+                        .circular-progress-container {{
+                            position: relative;
+                            width: 140px;
+                            height: 140px;
+                            border-radius: 50%;
+                            background: conic-gradient(#00b894 {progress_pct}%, #dfe6e9 0deg);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+                            pointer-events: auto; 
+                            transition: background 0.5s ease-out;
+                        }}
+                        
+                        /* Lớp nền trắng khoét rỗng ở giữa */
+                        .circular-progress-container::before {{
+                            content: "";
+                            position: absolute;
+                            width: 120px;
+                            height: 120px;
+                            background-color: white;
+                            border-radius: 50%;
+                            z-index: 1;
+                        }}
+                        
+                        .avatar-img-float {{
+                            width: 110px;
+                            height: 110px;
+                            border-radius: 50%;
+                            object-fit: cover;
+                            z-index: 2;
+                            border: 2px solid #f1f2f6;
+                        }}
+                        
+                        .progress-badge {{
+                            position: absolute;
+                            bottom: -5px;
+                            left: 50%;
+                            transform: translateX(-50%);
+                            background: #ff7675;
+                            color: white;
+                            padding: 5px 15px;
+                            border-radius: 20px;
+                            font-weight: 900;
+                            font-size: 14px;
+                            border: 3px solid white;
+                            z-index: 3;
+                            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+                        }}
+                        
+                        /* Bong bóng chat kế bên */
+                        .mini-chat {{
+                            background: white;
+                            padding: 12px 20px;
+                            border-radius: 15px;
+                            border-left: 5px solid #00b894;
+                            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+                            font-size: 16px;
+                            font-weight: bold;
+                            color: #2d3436;
+                            position: relative;
+                            animation: floatUpDown 3s ease-in-out infinite;
+                            pointer-events: auto;
+                            white-space: nowrap;
+                        }}
+                        
+                        .mini-chat::before {{
+                            content: '';
+                            position: absolute;
+                            left: -10px;
+                            top: 50%;
+                            transform: translateY(-50%);
+                            border-top: 10px solid transparent;
+                            border-bottom: 10px solid transparent;
+                            border-right: 10px solid white;
+                        }}
+                        
+                        @keyframes floatUpDown {{
+                            0%, 100% {{ transform: translateY(0); }}
+                            50% {{ transform: translateY(-10px); }}
+                        }}
+                        
+                        /* Responsive thu gọn lại ở dưới góc màn hình điện thoại */
+                        @media (max-width: 1024px) {{
+                            .floating-widget {{
+                                top: auto;
+                                bottom: 20px;
+                                left: 20px;
+                                transform: none;
+                            }}
+                            .circular-progress-container {{ width: 100px; height: 100px; }}
+                            .circular-progress-container::before {{ width: 84px; height: 84px; }}
+                            .avatar-img-float {{ width: 76px; height: 76px; }}
+                            .mini-chat {{ display: none; }} 
+                        }}
+                    </style>
+                    
+                    <div class="floating-widget">
+                        <div class="circular-progress-container">
+                            <img src="{avatar_src}" class="avatar-img-float">
+                            <div class="progress-badge">{progress_text}</div>
+                        </div>
+                        <div class="mini-chat">
+                            {chat_msg}
+                        </div>
+                    </div>
+                    """
+                    st.markdown(floating_html, unsafe_allow_html=True)
                     st.markdown("---")
 
+                    # =========================================================
+                    # CƠ CHẾ GIẤU MENU (CHỈ HIỆN 1 TRONG 2 TRẠNG THÁI)
+                    # =========================================================
                     if len(st.session_state['playlist']) == 0:
+                        
                         st.markdown("### 🎯 CHOOSE YOUR MISSION")
 
                         col_b, col_u, col_t = st.columns(3)
@@ -672,7 +811,6 @@ elif st.session_state['role'] == 'student':
                         if st.button("🚀 START MISSION", type="primary", use_container_width=True):
                             with st.spinner("Shuffling questions and preparing missions..."):
                                 try:
-                                    # Lấy đề bài từ RAM đệm
                                     all_qs = get_questions(sel_book, sel_unit, sel_topic)
                                     
                                     if not all_qs:
@@ -700,8 +838,7 @@ elif st.session_state['role'] == 'student':
                         curr_idx = st.session_state['current_q']
                         current_q_data = st.session_state['playlist'][curr_idx]
                         
-                        st.progress((curr_idx + 1) / total_q)
-                        st.caption(f"🚩 Progress: Mission {curr_idx + 1} / {total_q}")
+                        # (Đã gỡ bỏ st.progress và st.caption vì đã có Avatar Tròn lo liệu)
                         
                         col_nav1, col_nav2, col_nav3 = st.columns([1, 2, 1])
                         with col_nav2:
