@@ -171,9 +171,6 @@ if st.session_state['role'] is None:
 # =========================================================================
 # 5. STUDENT PORTAL
 # =========================================================================
-# =========================================================================
-# 5. STUDENT PORTAL
-# =========================================================================
 elif st.session_state['role'] == 'student':
     import random, string, json
     
@@ -644,26 +641,48 @@ elif st.session_state['role'] == 'student':
                 # BƯỚC 3: KIỂM TRA ĐĂNG NHẬP THÀNH CÔNG -> HIỂN THỊ AVATAR NỔI
                 if selected_name != "👇 Click here...":
                     
-                    # Biến toàn cục lưu trạng thái bài học (Khởi tạo trước để tính điểm)
+                    # Biến toàn cục lưu trạng thái bài học
                     if 'playlist' not in st.session_state:
                         st.session_state['playlist'] = []
                         st.session_state['current_q'] = 0
                         st.session_state['all_questions'] = []
+                    if 'mission_completed' not in st.session_state:
+                        st.session_state['mission_completed'] = False
 
                     student_info = next(item for item in students_in_class if item["student_name"] == selected_name)
                     avatar_src = f"data:image/jpeg;base64,{student_info['avatar']}" if student_info['avatar'] else "https://cdn-icons-png.flaticon.com/512/149/149071.png"
                     
-                    # Tính toán % tiến độ
-                    if len(st.session_state['playlist']) > 0:
-                        total_q = len(st.session_state['playlist'])
-                        curr_idx = st.session_state['current_q']
-                        progress_pct = int(((curr_idx + 1) / total_q) * 100)
-                        progress_text = f"{curr_idx + 1}/{total_q}"
-                        chat_msg = f"🚀 Keep going, {selected_name}!"
+                    # TÍNH TOÁN VÒNG TRÒN TIẾN ĐỘ CHIA ĐỐT & CẦU VỒNG
+                    if st.session_state['mission_completed']:
+                        bg_css = "background: conic-gradient(red, orange, yellow, green, blue, indigo, violet, red); animation: spin 3s linear infinite;"
+                        progress_text = "Well Done!"
+                        chat_msg = f"🌈 Excellent job, {selected_name}! You are a star!"
                     else:
-                        progress_pct = 0
-                        progress_text = "Ready"
-                        chat_msg = f"🎉 Hello {selected_name}!"
+                        if len(st.session_state['playlist']) > 0:
+                            total_q = len(st.session_state['playlist'])
+                            curr_idx = st.session_state['current_q']
+                            
+                            gradient_stops = []
+                            deg_per_q = 360 / total_q
+                            for i in range(total_q):
+                                start_deg = i * deg_per_q
+                                end_deg = (i + 1) * deg_per_q - 4 # Tạo khoảng hở 4 độ giữa các đốt
+                                gap_end = (i + 1) * deg_per_q
+                                
+                                if i < curr_idx: color = "#00b894" # Xanh lá (Đã qua)
+                                elif i == curr_idx: color = "#feca57" # Vàng (Đang làm)
+                                else: color = "#dfe6e9" # Xám (Chưa tới)
+                                
+                                gradient_stops.append(f"{color} {start_deg}deg {end_deg}deg")
+                                gradient_stops.append(f"transparent {end_deg}deg {gap_end}deg")
+                            
+                            bg_css = f"background: conic-gradient({', '.join(gradient_stops)});"
+                            progress_text = f"{curr_idx + 1}/{total_q}"
+                            chat_msg = f"🚀 Keep going, {selected_name}!"
+                        else:
+                            bg_css = "background: #dfe6e9;"
+                            progress_text = "Ready"
+                            chat_msg = f"🎉 Hello {selected_name}!"
 
                     # =========================================================
                     # CSS & HTML CHO AVATAR NỔI (FLOATING WIDGET) + PROGRESS TRÒN
@@ -679,26 +698,33 @@ elif st.session_state['role'] == 'student':
                             display: flex;
                             align-items: center;
                             gap: 15px;
-                            pointer-events: none; /* Tránh block các nút bấm bên dưới */
+                            pointer-events: none;
                         }}
                         
-                        /* Thanh progress bo tròn bằng gradient */
                         .circular-progress-container {{
                             position: relative;
                             width: 140px;
                             height: 140px;
                             border-radius: 50%;
-                            background: conic-gradient(#00b894 {progress_pct}%, #dfe6e9 0deg);
                             display: flex;
                             align-items: center;
                             justify-content: center;
                             box-shadow: 0 8px 25px rgba(0,0,0,0.15);
                             pointer-events: auto; 
-                            transition: background 0.5s ease-out;
+                            overflow: hidden;
                         }}
                         
-                        /* Lớp nền trắng khoét rỗng ở giữa */
-                        .circular-progress-container::before {{
+                        @keyframes spin {{ 100% {{ transform: rotate(360deg); }} }}
+                        
+                        .circular-progress-bg {{
+                            position: absolute;
+                            width: 100%;
+                            height: 100%;
+                            border-radius: 50%;
+                            {bg_css}
+                        }}
+                        
+                        .circular-progress-container::after {{
                             content: "";
                             position: absolute;
                             width: 120px;
@@ -719,7 +745,7 @@ elif st.session_state['role'] == 'student':
                         
                         .progress-badge {{
                             position: absolute;
-                            bottom: -5px;
+                            bottom: 0px;
                             left: 50%;
                             transform: translateX(-50%);
                             background: #ff7675;
@@ -733,7 +759,6 @@ elif st.session_state['role'] == 'student':
                             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
                         }}
                         
-                        /* Bong bóng chat kế bên */
                         .mini-chat {{
                             background: white;
                             padding: 12px 20px;
@@ -765,7 +790,6 @@ elif st.session_state['role'] == 'student':
                             50% {{ transform: translateY(-10px); }}
                         }}
                         
-                        /* Responsive thu gọn lại ở dưới góc màn hình điện thoại */
                         @media (max-width: 1024px) {{
                             .floating-widget {{
                                 top: auto;
@@ -774,7 +798,7 @@ elif st.session_state['role'] == 'student':
                                 transform: none;
                             }}
                             .circular-progress-container {{ width: 100px; height: 100px; }}
-                            .circular-progress-container::before {{ width: 84px; height: 84px; }}
+                            .circular-progress-container::after {{ width: 84px; height: 84px; }}
                             .avatar-img-float {{ width: 76px; height: 76px; }}
                             .mini-chat {{ display: none; }} 
                         }}
@@ -782,6 +806,7 @@ elif st.session_state['role'] == 'student':
                     
                     <div class="floating-widget">
                         <div class="circular-progress-container">
+                            <div class="circular-progress-bg"></div>
                             <img src="{avatar_src}" class="avatar-img-float">
                             <div class="progress-badge">{progress_text}</div>
                         </div>
@@ -794,17 +819,26 @@ elif st.session_state['role'] == 'student':
                     st.markdown("---")
 
                     # =========================================================
-                    # CƠ CHẾ GIẤU MENU (CHỈ HIỆN 1 TRONG 2 TRẠNG THÁI)
+                    # CƠ CHẾ ĐIỀU HƯỚNG 3 TRẠNG THÁI (MENU / PLAYING / FINISHED)
                     # =========================================================
-                    if len(st.session_state['playlist']) == 0:
+                    if st.session_state['mission_completed']:
+                        st.balloons()
+                        st.markdown("<h2 style='text-align: center; color: #00b894;'>🎉 RAINBOW UNLOCKED! 🎉</h2>", unsafe_allow_html=True)
+                        st.info("You have successfully completed all challenges in this mission!")
+                        if st.button("🚀 CHOOSE ANOTHER MISSION", type="primary", use_container_width=True):
+                            st.session_state['mission_completed'] = False
+                            st.rerun()
+
+                    elif len(st.session_state['playlist']) == 0:
                         
                         st.markdown("### 🎯 CHOOSE YOUR MISSION")
+                        book_list = ["Kid's Box 1", "Kid's Box 2", "Kid's Box 3", "Kid's Box 4", "Kid's Box 5", "Kid's Box 6"]
 
                         col_b, col_u, col_t = st.columns(3)
                         with col_b:
-                            sel_book = st.selectbox("📚 Book:", ["Kid's Box 1", "Kid's Box 2", "Kid's Box 3"])
+                            sel_book = st.selectbox("📚 Book:", book_list)
                         with col_u:
-                            sel_unit = st.selectbox("📖 Unit:", ["Unit 1", "Unit 2", "Unit 3", "Unit 4"])
+                            sel_unit = st.selectbox("📖 Unit:", ["Unit 1", "Unit 2", "Unit 3", "Unit 4", "Unit 5"])
                         with col_t:
                             sel_topic = st.selectbox("🌟 Topic:", ["Animals", "Colors", "Greetings", "Family"])
 
@@ -838,8 +872,6 @@ elif st.session_state['role'] == 'student':
                         curr_idx = st.session_state['current_q']
                         current_q_data = st.session_state['playlist'][curr_idx]
                         
-                        # (Đã gỡ bỏ st.progress và st.caption vì đã có Avatar Tròn lo liệu)
-                        
                         col_nav1, col_nav2, col_nav3 = st.columns([1, 2, 1])
                         with col_nav2:
                             btn_label = "FINISH MISSION 🌟" if curr_idx == total_q - 1 else "NEXT MISSION ➔"
@@ -848,8 +880,7 @@ elif st.session_state['role'] == 'student':
                                     st.session_state['current_q'] += 1
                                     st.rerun()
                                 else:
-                                    st.balloons()
-                                    st.success("🎉 EXCELLENT! YOU HAVE COMPLETED ALL MISSIONS TODAY!")
+                                    st.session_state['mission_completed'] = True
                                     st.session_state['playlist'] = []
                                     st.rerun()
                                     
@@ -861,6 +892,258 @@ elif st.session_state['role'] == 'student':
                         elif ex_type == 'Ex3': run_ex3_dynamic(st.session_state['all_questions'], curr_idx)
                         elif ex_type == 'Ex4': run_ex4_dynamic(st.session_state['all_questions'], curr_idx)
                         else: st.error("⚠️ System cannot recognize this mission type.")
+                
+# ================= 6. TEACHER PORTAL =================
+elif st.session_state['role'] == 'teacher':
+    if not st.session_state['is_teacher_logged_in']:
+        st.markdown("### 👨‍🏫 Teacher Login")
+        u_tch = st.text_input("Username:")
+        p_tch = st.text_input("Password:", type="password")
+        if st.button("🔓 Login", type="primary"):
+            res = supabase.table("teachers").select("*").eq("username", u_tch).eq("password", p_tch).execute()
+            if res.data:
+                st.session_state['is_teacher_logged_in'] = True
+                st.session_state['current_teacher'] = res.data[0]['full_name']
+                st.session_state['current_teacher_username'] = res.data[0]['username']
+                st.rerun()
+            else:
+                st.error("❌ Invalid username or password. Please contact Admin.")
+    else:
+        c_title, c_btn = st.columns([4, 1])
+        with c_title:
+            st.success(f"✨ Welcome back, Teacher **{st.session_state['current_teacher']}**!")
+        with c_btn:
+            if st.button("🔒 Logout"):
+                st.session_state['is_teacher_logged_in'] = False
+                st.rerun()
+            
+        st.markdown("---")
+        
+        tab_assign, tab_bank, tab_student = st.tabs(["🛠️ Assign Homework", "🏦 Question Bank", "👧🏻 Manage Students"])
+        book_list = ["Kid's Box 1", "Kid's Box 2", "Kid's Box 3", "Kid's Box 4", "Kid's Box 5", "Kid's Box 6"]
+        
+        with tab_assign:
+            st.markdown("#### Create New Session")
+            col1, col2 = st.columns(2)
+            with col1:
+                sach = st.selectbox("📚 Select Book:", book_list)
+                ky_nang = st.selectbox("🎯 Target Skill:", ["Listening", "Reading & Writing", "Speaking"])
+            with col2:
+                units = st.multiselect("🏷️ Select Units:", ["Unit 1", "Unit 2", "Unit 3", "Unit 4", "Unit 5"])
+                thoi_gian = st.number_input("⏳ Duration (Hours):", min_value=1, value=48)
+            
+            if st.button("🚀 PUBLISH ASSIGNMENT", type="primary", use_container_width=True):
+                if not units:
+                    st.error("⚠️ Please select at least one Unit!")
+                else:
+                    st.session_state['active_session'] = {
+                        'book': sach, 'units': units, 'skill': ky_nang, 
+                        'deadline': datetime.datetime.now() + datetime.timedelta(hours=thoi_gian)
+                    }
+                    st.success(f"Successfully published assignment for {sach} ({', '.join(units)})!")
+
+        with tab_bank:
+            st.markdown("#### 🏦 Import Questions from Excel")
+            st.info("💡 **Instruction:** The uploaded Excel file must have headers: **Book, Unit, Topic, Type, Question, Answer, Options**")
+            
+            uploaded_file = st.file_uploader("📥 Upload Excel file (.xlsx) here", type=["xlsx"])
+            
+            if uploaded_file:
+                try:
+                    import pandas as pd
+                    df = pd.read_excel(uploaded_file)
+                    df = df.dropna(how='all')
+                    
+                    st.write("👀 **Data Preview:**")
+                    st.dataframe(df.head(5), use_container_width=True)
+                    
+                    if st.button("🚀 UPLOAD TO DATABASE", type="primary", use_container_width=True):
+                        with st.spinner("Uploading data to Supabase..."):
+                            success_count = 0
+                            for index, row in df.iterrows():
+                                try:
+                                    data_insert = {
+                                        "book": str(row.get('Book', '')).strip(),
+                                        "unit": str(row.get('Unit', '')).strip(),
+                                        "topic": str(row.get('Topic', '')).strip(),
+                                        "ex_type": str(row.get('Type', '')).strip(),
+                                        "question": str(row.get('Question', '')).strip(),
+                                        "answer": str(row.get('Answer', '')).strip(),
+                                        "options": str(row.get('Options', '')).strip() if pd.notna(row.get('Options')) else ""
+                                    }
+                                    supabase.table("questions").insert(data_insert).execute()
+                                    success_count += 1
+                                except Exception as err:
+                                    st.error(f"⚠️ Error at row {index + 2}: {err}")
+                            
+                            st.success(f"🎉 Excellent! Successfully uploaded {success_count} questions!")
+                            st.balloons()
+                except Exception as e:
+                    st.error(f"❌ Invalid Excel file. Error: {e}")
+                    
+            st.markdown("---")
+            
+            st.markdown("#### 📋 Question Library (Cloud Database)")
+            
+            col_loc1, col_loc2 = st.columns(2)
+            with col_loc1:
+                filter_book = st.selectbox("📚 Filter by Book:", ["All"] + book_list)
+            with col_loc2:
+                if st.button("🔄 Refresh List", use_container_width=True):
+                    st.rerun()
+            
+            try:
+                if filter_book == "All":
+                    res_q = supabase.table("questions").select("*").execute()
+                else:
+                    res_q = supabase.table("questions").select("*").eq("book", filter_book).execute()
+                    
+                db_questions = res_q.data
+                
+                if db_questions:
+                    df_view = pd.DataFrame(db_questions)
+                    df_view = df_view[['id', 'book', 'unit', 'topic', 'ex_type', 'question', 'answer', 'options']]
+                    
+                    st.dataframe(df_view, use_container_width=True, hide_index=True)
+                    st.caption(f"📊 Total: **{len(db_questions)}** questions in database.")
+                else:
+                    st.warning("📭 Database is empty. Please upload an Excel file!")
+            except Exception as e:
+                st.error("⚠️ Supabase connection error! Please check your table structure.")
+
+        with tab_student:
+            st.markdown("**Add Student to Class**")
+            res_classes = supabase.table("classes").select("*").eq("teacher_username", st.session_state['current_teacher_username']).execute()
+            db_classes = res_classes.data
+            
+            if not db_classes:
+                st.warning("⚠️ No classes found. Please ask Admin to create a class first!")
+            else:
+                class_options = [f"{c['class_code']} - {c['class_name']}" for c in db_classes]
+                selected_class_full = st.selectbox("Assign to Class:", class_options)
+                selected_code = selected_class_full.split(" - ")[0]
+                
+                s_name = st.text_input("Student Name (e.g., Harry Potter):").strip()
+                s_avatar = st.file_uploader("Upload Student Avatar (Optional)", type=["png", "jpg", "jpeg"])
+                
+                avatar_b64 = None
+                
+                if s_avatar:
+                    st.info("✂️ Drag and resize the blue box to frame the face. (The square will automatically become a circle later!)")
+                    img = Image.open(s_avatar)
+                    cropped_img = st_cropper(img, aspect_ratio=(1, 1), box_color='#0984e3', return_type='image')
+                    
+                    buffered = io.BytesIO()
+                    cropped_img.save(buffered, format="PNG")
+                    avatar_b64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
+                
+                if st.button("➕ ADD STUDENT", type="primary"):
+                    if s_name:
+                        try:
+                            supabase.table("students").insert({
+                                "class_code": selected_code, "student_name": s_name, "avatar": avatar_b64
+                            }).execute()
+                            get_students_in_class.clear()
+                            st.success(f"✅ Added {s_name} to class {selected_code} successfully!")
+                            st.rerun() 
+                        except Exception as e:
+                            st.error(f"❌ Error adding student: {e}")
+                    else:
+                        st.error("⚠️ Please enter the student's name.")
+                            
+            st.markdown("---")
+            if db_classes:
+                view_class = st.selectbox("View Students in Class:", options=[c['class_code'] for c in db_classes], format_func=lambda x: next(c['class_name'] for c in db_classes if c['class_code'] == x))
+                if view_class:
+                    res_students = supabase.table("students").select("*").eq("class_code", view_class).execute()
+                    if res_students.data:
+                        st.write(f"**Total: {len(res_students.data)} students**")
+                        cols = st.columns(4)
+                        for i, student in enumerate(res_students.data):
+                            with cols[i % 4]:
+                                avt_src = f"data:image/jpeg;base64,{student['avatar']}" if student['avatar'] else "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+                                st.markdown(f"""
+                                    <div style="text-align: center; background: rgba(255,255,255,0.8); padding: 15px; border-radius: 15px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 2px solid transparent;">
+                                        <img src="{avt_src}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid #6c5ce7; padding: 2px;">
+                                        <p style="font-weight: bold; margin-top: 10px; margin-bottom: 0; color: #2d3436; font-size: 16px;">{student['student_name']}</p>
+                                    </div>
+                                """, unsafe_allow_html=True)
+                    else:
+                        st.info("No students in this class yet.")
+
+# ================= 7. ADMIN PORTAL =================
+elif st.session_state['role'] == 'admin':
+    if 'is_admin_logged_in' not in st.session_state:
+        st.session_state['is_admin_logged_in'] = False
+        
+    if not st.session_state['is_admin_logged_in']:
+        st.markdown("### 🛡️ System Administrator")
+        u_admin = st.text_input("Admin ID:")
+        p_admin = st.text_input("Password:", type="password")
+        if st.button("🔓 Login", type="primary"):
+            if u_admin == "admin" and p_admin == "123456": 
+                st.session_state['is_admin_logged_in'] = True
+                st.rerun()
+            else:
+                st.error("❌ Access Denied!")
+    else:
+        c_title, c_btn = st.columns([4, 1])
+        with c_title:
+            st.success("✨ Welcome to Central Management!")
+        with c_btn:
+            if st.button("🔒 Logout"):
+                st.session_state['is_admin_logged_in'] = False
+                st.rerun()
+            
+        tab_tch, tab_cls = st.tabs(["👨‍🏫 Manage Teachers", "🏫 Manage Classes"])
+        
+        with tab_tch:
+            st.markdown("**Create Teacher Accounts**")
+            with st.form("add_teacher", clear_on_submit=True):
+                t_name = st.text_input("Teacher's Full Name:")
+                t_user = st.text_input("Username (Login ID):").strip()
+                t_pass = st.text_input("Password:", type="password")
+                if st.form_submit_button("➕ CREATE ACCOUNT", type="primary"):
+                    if t_user and t_pass:
+                        try:
+                            supabase.table("teachers").insert({"username": t_user, "password": t_pass, "full_name": t_name}).execute()
+                            st.success(f"✅ Account '{t_user}' created for {t_name}!")
+                        except Exception as e:
+                            st.error(f"❌ Error (Username may already exist): {e}")
+                    else:
+                        st.warning("Please fill all fields.")
+                            
+        with tab_cls:
+            st.markdown("**Create Official Classes & Assign Teachers**")
+            
+            res_tch = supabase.table("teachers").select("*").execute()
+            db_teachers = res_tch.data
+            
+            if not db_teachers:
+                st.warning("⚠️ Please create at least one Teacher account first!")
+            else:
+                with st.form("add_class_admin", clear_on_submit=True):
+                    c_code = st.text_input("Class Code (e.g., ENG101):").strip().upper()
+                    c_name = st.text_input("Class Name (e.g., Movers 1):").strip()
+                    
+                    teacher_options = [f"{t['username']} - {t['full_name']}" for t in db_teachers]
+                    selected_teacher_full = st.selectbox("Assign Teacher:", teacher_options)
+                    selected_t_username = selected_teacher_full.split(" - ")[0]
+                    
+                    if st.form_submit_button("➕ ADD CLASS", type="primary"):
+                        if c_code and c_name:
+                            try:
+                                supabase.table("classes").insert({
+                                    "class_code": c_code, 
+                                    "class_name": c_name,
+                                    "teacher_username": selected_t_username
+                                }).execute()
+                                get_class_info.clear() 
+                                st.success(f"✅ Class {c_name} assigned to teacher '{selected_t_username}' successfully!")
+                            except Exception as e:
+                                st.error(f"❌ Error adding class: {e}")
+                        else:
+                            st.error("⚠️ Please enter both Code and Name.")
                 
 # ================= 6. TEACHER PORTAL =================
 elif st.session_state['role'] == 'teacher':
