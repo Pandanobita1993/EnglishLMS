@@ -428,7 +428,7 @@ elif st.session_state['role'] == 'student':
                                 sel_topic = st.selectbox("🌟 Topic:", topics) if topics else st.selectbox("🌟 Topic:", ["N/A"])
 
                             if st.button("🚀 START MISSION", type="primary", use_container_width=True):
-                            with st.spinner("Shuffling questions and preparing missions..."):
+                                with st.spinner("Shuffling questions and preparing missions..."):
                                 try:
                                     all_qs = get_questions(sel_book, sel_unit, sel_topic)
                                     
