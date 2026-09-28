@@ -46,11 +46,16 @@ def get_questions(book, unit, topic):
 
 @st.cache_data(ttl=300)
 def get_curriculum_structure():
-    # Chỉ quét đúng bảng danh mục khung chương trình, tốc độ phản hồi tính bằng mili-giây
-    res = supabase.table("curriculum").select("book, unit, topic").execute()
-    if res.data:
-        return pd.DataFrame(res.data).drop_duplicates()
-    return pd.DataFrame()
+    try:
+        # Cố gắng quét bảng danh mục khung chương trình
+        res = supabase.table("curriculum").select("book, unit, topic").execute()
+        if res.data:
+            return pd.DataFrame(res.data).drop_duplicates()
+        return pd.DataFrame()
+    except Exception as e:
+        # Nếu bảng chưa tạo, bị khóa RLS, hoặc lỗi mạng -> Bắt lỗi êm ái
+        print(f"Lỗi đọc khung chương trình: {e}") # Báo lỗi ngầm trong log của Admin
+        return pd.DataFrame() # Trả về bảng rỗng để giao diện tự hiện cảnh báo màu vàng
     
 # ================= 1. SYSTEM & UI CONFIGURATION =================
 st.set_page_config(page_title="Smart English Class", page_icon="🏫", layout="centered")
