@@ -214,10 +214,10 @@ elif st.session_state['role'] == 'student':
                 student_options = ["👇 Click here..."] + [s['student_name'] for s in students_in_class]
                 selected_name = st.selectbox("Who are you?", options=student_options)
                 
-                # BƯỚC 3: KIỂM TRA ĐĂNG NHẬP THÀNH CÔNG -> HIỂN THỊ AVATAR NỔI
+                # BƯỚC 3: KIỂM TRA ĐĂNG NHẬP THÀNH CÔNG -> HIỂN THỊ AVATAR NỔI VÀ BÀI TẬP
                 if selected_name != "👇 Click here...":
                     
-                    # Biến toàn cục lưu trạng thái bài học
+                    # 1. Khởi tạo các biến lưu trạng thái nếu chưa có
                     if 'playlist' not in st.session_state:
                         st.session_state['playlist'] = []
                         st.session_state['current_q'] = 0
@@ -225,10 +225,10 @@ elif st.session_state['role'] == 'student':
                     if 'mission_completed' not in st.session_state:
                         st.session_state['mission_completed'] = False
 
+                    # 2. Xử lý Avatar và tính toán % Vòng tròn tiến độ
                     student_info = next(item for item in students_in_class if item["student_name"] == selected_name)
                     avatar_src = f"data:image/jpeg;base64,{student_info['avatar']}" if student_info['avatar'] else "https://cdn-icons-png.flaticon.com/512/149/149071.png"
                     
-                    # TÍNH TOÁN VÒNG TRÒN TIẾN ĐỘ CHIA ĐỐT & CẦU VỒNG
                     if st.session_state['mission_completed']:
                         bg_css = "background: conic-gradient(red, orange, yellow, green, blue, indigo, violet, red); animation: spin 3s linear infinite;"
                         progress_text = "Well Done!"
@@ -242,7 +242,7 @@ elif st.session_state['role'] == 'student':
                             deg_per_q = 360 / total_q
                             for i in range(total_q):
                                 start_deg = i * deg_per_q
-                                end_deg = (i + 1) * deg_per_q - 4 # Tạo khoảng hở 4 độ giữa các đốt
+                                end_deg = (i + 1) * deg_per_q - 4 # Tạo độ hở cho các đốt
                                 gap_end = (i + 1) * deg_per_q
                                 
                                 if i < curr_idx: color = "#00b894" # Xanh lá (Đã qua)
@@ -260,164 +260,91 @@ elif st.session_state['role'] == 'student':
                             progress_text = "Ready"
                             chat_msg = f"🎉 Hello {selected_name}!"
 
-                    # =========================================================
-                    # CSS & HTML CHO AVATAR NỔI (FLOATING WIDGET) + PROGRESS TRÒN
-                    # =========================================================
+                    # Giao diện Floating Widget
                     floating_html = f"""
                     <style>
                         .floating-widget {{
-                            position: fixed;
-                            top: 50%;
-                            left: 3%;
-                            transform: translateY(-50%);
-                            z-index: 99999;
-                            display: flex;
-                            align-items: center;
-                            gap: 15px;
-                            pointer-events: none;
+                            position: fixed; top: 50%; left: 3%; transform: translateY(-50%);
+                            z-index: 99999; display: flex; align-items: center; gap: 15px; pointer-events: none;
                         }}
-                        
                         .circular-progress-container {{
-                            position: relative;
-                            width: 140px;
-                            height: 140px;
-                            border-radius: 50%;
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-                            pointer-events: auto; 
-                            overflow: hidden;
+                            position: relative; width: 140px; height: 140px; border-radius: 50%;
+                            display: flex; align-items: center; justify-content: center;
+                            box-shadow: 0 8px 25px rgba(0,0,0,0.15); pointer-events: auto; overflow: hidden;
                         }}
-                        
                         @keyframes spin {{ 100% {{ transform: rotate(360deg); }} }}
-                        
                         .circular-progress-bg {{
-                            position: absolute;
-                            width: 100%;
-                            height: 100%;
-                            border-radius: 50%;
-                            {bg_css}
+                            position: absolute; width: 100%; height: 100%; border-radius: 50%; {bg_css}
                         }}
-                        
                         .circular-progress-container::after {{
-                            content: "";
-                            position: absolute;
-                            width: 120px;
-                            height: 120px;
-                            background-color: white;
-                            border-radius: 50%;
-                            z-index: 1;
+                            content: ""; position: absolute; width: 120px; height: 120px;
+                            background-color: white; border-radius: 50%; z-index: 1;
                         }}
-                        
                         .avatar-img-float {{
-                            width: 110px;
-                            height: 110px;
-                            border-radius: 50%;
-                            object-fit: cover;
-                            z-index: 2;
-                            border: 2px solid #f1f2f6;
+                            width: 110px; height: 110px; border-radius: 50%; object-fit: cover;
+                            z-index: 2; border: 2px solid #f1f2f6;
                         }}
-                        
                         .progress-badge {{
-                            position: absolute;
-                            bottom: 0px;
-                            left: 50%;
-                            transform: translateX(-50%);
-                            background: #ff7675;
-                            color: white;
-                            padding: 5px 15px;
-                            border-radius: 20px;
-                            font-weight: 900;
-                            font-size: 14px;
-                            border: 3px solid white;
-                            z-index: 3;
+                            position: absolute; bottom: 0px; left: 50%; transform: translateX(-50%);
+                            background: #ff7675; color: white; padding: 5px 15px; border-radius: 20px;
+                            font-weight: 900; font-size: 14px; border: 3px solid white; z-index: 3;
                             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
                         }}
-                        
                         .mini-chat {{
-                            background: white;
-                            padding: 12px 20px;
-                            border-radius: 15px;
-                            border-left: 5px solid #00b894;
-                            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-                            font-size: 16px;
-                            font-weight: bold;
-                            color: #2d3436;
-                            position: relative;
-                            animation: floatUpDown 3s ease-in-out infinite;
-                            pointer-events: auto;
-                            white-space: nowrap;
+                            background: white; padding: 12px 20px; border-radius: 15px;
+                            border-left: 5px solid #00b894; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+                            font-size: 16px; font-weight: bold; color: #2d3436; position: relative;
+                            animation: floatUpDown 3s ease-in-out infinite; pointer-events: auto; white-space: nowrap;
                         }}
-                        
                         .mini-chat::before {{
-                            content: '';
-                            position: absolute;
-                            left: -10px;
-                            top: 50%;
-                            transform: translateY(-50%);
-                            border-top: 10px solid transparent;
-                            border-bottom: 10px solid transparent;
-                            border-right: 10px solid white;
+                            content: ''; position: absolute; left: -10px; top: 50%; transform: translateY(-50%);
+                            border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-right: 10px solid white;
                         }}
-                        
-                        @keyframes floatUpDown {{
-                            0%, 100% {{ transform: translateY(0); }}
-                            50% {{ transform: translateY(-10px); }}
-                        }}
-                        
+                        @keyframes floatUpDown {{ 0%, 100% {{ transform: translateY(0); }} 50% {{ transform: translateY(-10px); }} }}
                         @media (max-width: 1024px) {{
-                            .floating-widget {{
-                                top: auto;
-                                bottom: 20px;
-                                left: 20px;
-                                transform: none;
-                            }}
+                            .floating-widget {{ top: auto; bottom: 20px; left: 20px; transform: none; }}
                             .circular-progress-container {{ width: 100px; height: 100px; }}
                             .circular-progress-container::after {{ width: 84px; height: 84px; }}
                             .avatar-img-float {{ width: 76px; height: 76px; }}
                             .mini-chat {{ display: none; }} 
                         }}
                     </style>
-                    
                     <div class="floating-widget">
                         <div class="circular-progress-container">
                             <div class="circular-progress-bg"></div>
                             <img src="{avatar_src}" class="avatar-img-float">
                             <div class="progress-badge">{progress_text}</div>
                         </div>
-                        <div class="mini-chat">
-                            {chat_msg}
-                        </div>
+                        <div class="mini-chat">{chat_msg}</div>
                     </div>
                     """
                     st.markdown(floating_html, unsafe_allow_html=True)
                     st.markdown("---")
 
-                    # =========================================================
-                    # CƠ CHẾ GIẤU MENU (CHỈ HIỆN 1 TRONG 2 TRẠNG THÁI)
-                    # =========================================================
-                    if len(st.session_state['playlist']) == 0:
-                        
-                        st.markdown("### 🎯 CHOOSE YOUR MISSION")
+                    # 3. ĐIỀU HƯỚNG 3 TRẠNG THÁI: HOÀN THÀNH / CHỌN BÀI / ĐANG CHƠI
+                    if st.session_state['mission_completed']:
+                        st.balloons()
+                        st.markdown("<h2 style='text-align: center; color: #00b894;'>🎉 RAINBOW UNLOCKED! 🎉</h2>", unsafe_allow_html=True)
+                        st.info("You have successfully completed all challenges in this mission!")
+                        if st.button("🚀 CHOOSE ANOTHER MISSION", type="primary", use_container_width=True):
+                            st.session_state['mission_completed'] = False
+                            st.rerun()
 
-                        # Gọi dữ liệu từ bảng Khung chương trình chuẩn
+                    elif len(st.session_state['playlist']) == 0:
+                        st.markdown("### 🎯 CHOOSE YOUR MISSION")
+                        
                         df_curriculum = get_curriculum_structure()
                         
                         if df_curriculum.empty:
                             st.warning("📭 Chưa có chương trình học nào được thiết lập. Đợi thầy cô cập nhật nhé!")
                         else:
                             col_b, col_u, col_t = st.columns(3)
-                            
-                            # Lọc liên hoàn: Sách -> Unit -> Topic
                             with col_b:
                                 books = sorted(df_curriculum['book'].dropna().unique().tolist())
                                 sel_book = st.selectbox("📚 Book:", books)
-                                
                             with col_u:
                                 units = sorted(df_curriculum[df_curriculum['book'] == sel_book]['unit'].dropna().unique().tolist())
                                 sel_unit = st.selectbox("📖 Unit:", units) if units else st.selectbox("📖 Unit:", ["N/A"])
-                                
                             with col_t:
                                 topics = sorted(df_curriculum[(df_curriculum['book'] == sel_book) & (df_curriculum['unit'] == sel_unit)]['topic'].dropna().unique().tolist())
                                 sel_topic = st.selectbox("🌟 Topic:", topics) if topics else st.selectbox("🌟 Topic:", ["N/A"])
@@ -425,9 +352,7 @@ elif st.session_state['role'] == 'student':
                             if st.button("🚀 START MISSION", type="primary", use_container_width=True):
                                 with st.spinner("Shuffling questions and preparing missions..."):
                                     try:
-                                        # Khi bấm Start, hệ thống mới bắt đầu chui vào kho 'questions' để lấy đúng đề bài
                                         all_qs = get_questions(sel_book, sel_unit, sel_topic)
-                                        
                                         if not all_qs:
                                             st.warning("📭 Oops! No missions found for this selection. Please try another topic!")
                                         else:
@@ -447,6 +372,33 @@ elif st.session_state['role'] == 'student':
                                             st.rerun()
                                     except Exception as e:
                                         st.error(f"⚠️ Error fetching missions: {e}")
+
+                    else:
+                        # TRẠNG THÁI HIỂN THỊ BÀI TẬP (Khúc này bồ lỡ tay xóa mất nè)
+                        total_q = len(st.session_state['playlist'])
+                        curr_idx = st.session_state['current_q']
+                        current_q_data = st.session_state['playlist'][curr_idx]
+                        
+                        col_nav1, col_nav2, col_nav3 = st.columns([1, 2, 1])
+                        with col_nav2:
+                            btn_label = "FINISH MISSION 🌟" if curr_idx == total_q - 1 else "NEXT MISSION ➔"
+                            if st.button(btn_label, use_container_width=True, type="secondary"):
+                                if curr_idx < total_q - 1:
+                                    st.session_state['current_q'] += 1
+                                    st.rerun()
+                                else:
+                                    st.session_state['mission_completed'] = True
+                                    st.session_state['playlist'] = []
+                                    st.rerun()
+                                    
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        
+                        ex_type = current_q_data.get('ex_type', '')
+                        if ex_type == 'Ex1': run_ex1_dynamic(current_q_data, curr_idx)
+                        elif ex_type == 'Ex2': run_ex2_dynamic(current_q_data, curr_idx)
+                        elif ex_type == 'Ex3': run_ex3_dynamic(st.session_state['all_questions'], curr_idx)
+                        elif ex_type == 'Ex4': run_ex4_dynamic(st.session_state['all_questions'], curr_idx)
+                        else: st.error("⚠️ System cannot recognize this mission type.")
                 
 # ================= 6. TEACHER PORTAL =================
 elif st.session_state['role'] == 'teacher':
