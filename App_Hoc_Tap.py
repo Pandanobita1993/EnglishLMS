@@ -41,21 +41,33 @@ def get_students_in_class(class_code):
     return supabase.table("students").select("*").eq("class_code", class_code).execute().data
 
 @st.cache_data(ttl=300)
-def get_questions(book, unit, topic):
-    return supabase.table("questions").select("*").eq("book", book).eq("unit", unit).eq("topic", topic).execute().data
-
-@st.cache_data(ttl=300)
 def get_curriculum_structure():
     try:
-        # Cố gắng quét bảng danh mục khung chương trình
-        res = supabase.table("curriculum").select("book, unit, topic").execute()
+        # Kéo thêm cột level để phục vụ lộ trình luyện thi
+        res = supabase.table("curriculum").select("book, unit, topic, level").execute()
         if res.data:
             return pd.DataFrame(res.data).drop_duplicates()
         return pd.DataFrame()
     except Exception as e:
-        # Nếu bảng chưa tạo, bị khóa RLS, hoặc lỗi mạng -> Bắt lỗi êm ái
-        print(f"Lỗi đọc khung chương trình: {e}") # Báo lỗi ngầm trong log của Admin
-        return pd.DataFrame() # Trả về bảng rỗng để giao diện tự hiện cảnh báo màu vàng
+        print(f"Lỗi đọc khung chương trình: {e}")
+        return pd.DataFrame()
+
+@st.cache_data(ttl=300)
+def get_questions(mode, skill, book=None, unit=None, level=None, topic=None):
+    # Bộ lọc thông minh tự động uốn nắn theo lựa chọn của học viên
+    query = supabase.table("questions").select("*")
+    
+    # Lọc Kỹ năng (Nếu khác "All")
+    if skill != "All":
+        query = query.eq("skill", skill)
+        
+    # Lọc theo Lộ trình
+    if mode == "book":
+        query = query.eq("book", book).eq("unit", unit)
+    elif mode == "topic":
+        query = query.eq("level", level).eq("topic", topic)
+        
+    return query.execute().data
     
 # ================= 1. SYSTEM & UI CONFIGURATION =================
 st.set_page_config(page_title="Smart English Class", page_icon="🏫", layout="centered")
@@ -338,23 +350,53 @@ elif st.session_state['role'] == 'student':
                         if df_curriculum.empty:
                             st.warning("📭 Chưa có chương trình học nào được thiết lập. Đợi thầy cô cập nhật nhé!")
                         else:
-                            col_b, col_u, col_t = st.columns(3)
-                            with col_b:
-                                books = sorted(df_curriculum['book'].dropna().unique().tolist())
-                                sel_book = st.selectbox("📚 Book:", books)
-                            with col_u:
-                                units = sorted(df_curriculum[df_curriculum['book'] == sel_book]['unit'].dropna().unique().tolist())
-                                sel_unit = st.selectbox("📖 Unit:", units) if units else st.selectbox("📖 Unit:", ["N/A"])
-                            with col_t:
-                                topics = sorted(df_curriculum[(df_curriculum['book'] == sel_book) & (df_curriculum['unit'] == sel_unit)]['topic'].dropna().unique().tolist())
-                                sel_topic = st.selectbox("🌟 Topic:", topics) if topics else st.selectbox("🌟 Topic:", ["N/A"])
+                            # Bộ lọc Skill nắm trùm toàn bộ
+                            sel_skill = st.selectbox("⚡ Choose Skill:", ["All", "Listening", "Reading & Writing", "Vocabulary", "Speaking"])
+                            st.markdown("<br>", unsafe_allow_html=True)
+                            
+                            # Tách lộ trình bằng Tabs trực quan
+                            tab_book, tab_topic = st.tabs(["📚 Lộ trình Sách giáo khoa", "🏆 Lộ trình Luyện thi (Topic)"])
+                            
+                            with tab_book:
+                                col_b, col_u = st.columns(2)
+                                with col_b:
+                                    books = sorted(df_curriculum['book'].dropna().unique().tolist())
+                                    sel_book = st.selectbox("📖 Select Book:", books) if books else st.selectbox("📖 Select Book:", ["N/A"])
+                                with col_u:
+                                    if books:
+                                        units = sorted(df_curriculum[df_curriculum['book'] == sel_book]['unit'].dropna().unique().tolist())
+                                        sel_unit = st.selectbox("🏷️ Select Unit:", units) if units else st.selectbox("🏷️ Select Unit:", ["N/A"])
+                                    else:
+                                        sel_unit = "N/A"
+                                        
+                                btn_start_book = st.button("🚀 START BOOK MISSION", type="primary", use_container_width=True, key="btn_book")
 
-                            if st.button("🚀 START MISSION", type="primary", use_container_width=True):
+                            with tab_topic:
+                                col_l, col_t = st.columns(2)
+                                with col_l:
+                                    levels = ["Starter", "Mover", "Flyer"] 
+                                    sel_level = st.selectbox("🎓 Select Level:", levels)
+                                with col_t:
+                                    topics = sorted(df_curriculum[df_curriculum['level'] == sel_level]['topic'].dropna().unique().tolist())
+                                    sel_topic = st.selectbox("🌟 Select Topic:", topics) if topics else st.selectbox("🌟 Select Topic:", ["N/A"])
+                                    
+                                btn_start_topic = st.button("🚀 START TOPIC MISSION", type="primary", use_container_width=True, key="btn_topic")
+
+                            # Xử lý Logic bấm nút (Bấm tab nào thì lấy mode tab đó)
+                            if btn_start_book or btn_start_topic:
+                                mode = "book" if btn_start_book else "topic"
                                 with st.spinner("Shuffling questions and preparing missions..."):
                                     try:
-                                        all_qs = get_questions(sel_book, sel_unit, sel_topic)
+                                        all_qs = get_questions(
+                                            mode=mode, skill=sel_skill, 
+                                            book=sel_book if mode=="book" else None, 
+                                            unit=sel_unit if mode=="book" else None,
+                                            level=sel_level if mode=="topic" else None,
+                                            topic=sel_topic if mode=="topic" else None
+                                        )
+                                        
                                         if not all_qs:
-                                            st.warning("📭 Oops! No missions found for this selection. Please try another topic!")
+                                            st.warning("📭 Oops! No missions found for this selection. Please try another!")
                                         else:
                                             st.session_state['all_questions'] = all_qs
                                             quick_qs = [q for q in all_qs if q['ex_type'] in ['Ex1', 'Ex2']]
@@ -466,13 +508,34 @@ elif st.session_state['role'] == 'teacher':
                     
                     if st.button("🚀 UPLOAD TO DATABASE", type="primary", use_container_width=True):
                         with st.spinner("Uploading data to Supabase..."):
+                            import time # Dùng để đẻ ra mã bundle duy nhất dựa trên thời gian
                             success_count = 0
+                            current_bundle_id = None # Biến theo dõi xem có đang ở trong 1 bộ hay không
+                            
                             for index, row in df.iterrows():
                                 try:
+                                    # Lấy giá trị cột Bundle ở file Excel
+                                    bundle_val = str(row.get('Bundle', '')).strip().lower()
+                                    
+                                    # LOGIC TỰ ĐỘNG GOM BỘ (BUNDLE)
+                                    if bundle_val in ['yes', 'y', 'có', 'co', '1']:
+                                        # Nếu trước đó chưa có ID (dòng đầu tiên của bộ truyện mới)
+                                        if current_bundle_id is None:
+                                            # Tự đẻ ra 1 mã ID duy nhất trên đời (ghép chữ bundle + thời gian thực + số dòng)
+                                            current_bundle_id = f"bundle_{int(time.time())}_{index}"
+                                        assigned_bundle_id = current_bundle_id
+                                    else:
+                                        # Nếu ô trống -> Cắt đứt bộ truyện, trở về trạng thái câu hỏi lẻ
+                                        current_bundle_id = None
+                                        assigned_bundle_id = ""
+
                                     data_insert = {
                                         "book": str(row.get('Book', '')).strip(),
                                         "unit": str(row.get('Unit', '')).strip(),
                                         "topic": str(row.get('Topic', '')).strip(),
+                                        "level": str(row.get('Level', '')).strip(), 
+                                        "skill": str(row.get('Skill', 'All')).strip(), 
+                                        "bundle_id": assigned_bundle_id, # Đã được tự động hóa hoàn toàn
                                         "ex_type": str(row.get('Type', '')).strip(),
                                         "question": str(row.get('Question', '')).strip(),
                                         "answer": str(row.get('Answer', '')).strip(),
