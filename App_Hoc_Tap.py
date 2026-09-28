@@ -1,6 +1,6 @@
 # ==============================================================================
-# ỨNG DỤNG HỌC TẬP CAMBRIDGE KIDS (ALL-IN-ONE)
-# Yêu cầu cài đặt: pip install streamlit streamlit-sortables pandas streamlit-option-menu streamlit-lottie requests openpyxl supabase
+# CAMBRIDGE KIDS LEARNING APP (ALL-IN-ONE)
+# Requirements: pip install streamlit streamlit-sortables pandas streamlit-option-menu streamlit-lottie requests openpyxl supabase
 # ==============================================================================
 
 import streamlit as st
@@ -28,6 +28,21 @@ def init_connection():
     return create_client(url, key)
 
 supabase = init_connection()
+
+# -----------------------------------------------------------------------------
+# 🔥 HỆ THỐNG TỐI ƯU TỐC ĐỘ (CACHE) - TRÁNH LAG KHI RERUN 🔥
+# -----------------------------------------------------------------------------
+@st.cache_data(ttl=300)
+def get_class_info(class_code):
+    return supabase.table("classes").select("*").eq("class_code", class_code).execute().data
+
+@st.cache_data(ttl=300)
+def get_students_in_class(class_code):
+    return supabase.table("students").select("*").eq("class_code", class_code).execute().data
+
+@st.cache_data(ttl=300)
+def get_questions(book, unit, topic):
+    return supabase.table("questions").select("*").eq("book", book).eq("unit", unit).eq("topic", topic).execute().data
 
 # ================= 1. SYSTEM & UI CONFIGURATION =================
 st.set_page_config(page_title="Smart English Class", page_icon="🏫", layout="centered")
@@ -61,10 +76,9 @@ def set_responsive_background(image_path, current_role):
         mime = "image/png" if ext == "png" else "image/jpeg"
         bg_css = f'background-image: url("data:{mime};base64,{bin_str}");'
     except Exception as e: 
-        st.error(f"⚠️ Không tìm thấy ảnh nền. Bồ kiểm tra lại tên file nhé: {e}")
+        st.error(f"⚠️ Background image not found: {e}")
         bg_css = 'background-color: #f5f6fa;'
     
-    # Độ trong suốt: 
     bg_opacity = "rgba(255, 255, 255, 0.05)" if current_role is None else "rgba(255, 255, 255, 0.45)"
 
     st.markdown(f"""
@@ -78,7 +92,6 @@ def set_responsive_background(image_path, current_role):
             background-attachment: fixed;
         }}
         
-        /* GỌI TẤT CẢ CÁC TÊN CỦA KHUNG CHỨA */
         .block-container, 
         [data-testid="stAppViewBlockContainer"], 
         [data-testid="stMainBlockContainer"] {{
@@ -92,7 +105,6 @@ def set_responsive_background(image_path, current_role):
             transition: background 0.3s ease-in-out;
         }}
 
-        /* Ép chữ đậm chống Dark Mode */
         .block-container p, .block-container span, .block-container label, div[data-baseweb="select"] {{
             color: #2d3436 !important; 
             font-family: 'Nunito', sans-serif !important; 
@@ -105,23 +117,17 @@ def set_responsive_background(image_path, current_role):
             font-weight: 900 !important; font-family: 'Nunito', sans-serif !important;
         }}
         
-        /* 🔥 XÓA PHÔNG ĐEN CỦA ẢNH ĐỘNG & MENU TRONG DARK MODE 🔥 */
-        iframe {{
-            background-color: transparent !important;
-        }}
-        [data-testid="stFrame"] {{
+        iframe, [data-testid="stFrame"] {{
             background-color: transparent !important;
         }}
         </style>
     """, unsafe_allow_html=True)
 
-# Bật ảnh nền (Đã chốt cứng chuẩn 100% tên file của bồ)
 set_responsive_background("Background_1.jpg", st.session_state['role'])
 
-# Tiêu đề App
 st.markdown("<h1 style='text-align: center;'>🌟 CAMBRIDGE KIDS LMS 🌟</h1>", unsafe_allow_html=True)
 
-# ================= 3. THANH ĐIỀU HƯỚNG RESPONSIVE (OPTION MENU) =================
+# ================= 3. NAVIGATION (OPTION MENU) =================
 nav_options = ["Home", "Student", "Teacher", "Admin"]
 idx_map = {None: 0, 'student': 1, 'teacher': 2, 'admin': 3}
 
@@ -145,7 +151,6 @@ elif selected_nav != "Home" and st.session_state['role'] != selected_nav.lower()
     st.session_state['do_scroll'] = True
     st.rerun()
 
-# Logic tự cuộn trang
 st.markdown("<div id='portal_content'></div>", unsafe_allow_html=True)
 if st.session_state['do_scroll']:
     components.html("""
@@ -156,7 +161,7 @@ if st.session_state['do_scroll']:
     """, height=0)
     st.session_state['do_scroll'] = False
 
-# ================= 4. TRANG CHỦ (HOME) =================
+# ================= 4. HOME PORTAL =================
 if st.session_state['role'] is None:
     st.markdown("<h3 style='text-align: center; color: #0984e3 !important;'>Welcome to the Interactive Learning Platform!</h3>", unsafe_allow_html=True)
     if lottie_hello:
@@ -164,14 +169,11 @@ if st.session_state['role'] is None:
     st.info("👆 Please select your portal from the menu above to continue.")
 
 # =========================================================================
-# 5. GÓC HỌC VIÊN (STUDENT PORTAL) - PHIÊN BẢN ĐẤU NỐI DỮ LIỆU ĐỘNG
+# 5. STUDENT PORTAL
 # =========================================================================
 elif st.session_state['role'] == 'student':
     import random, string, json
     
-    # ---------------------------------------------------------------------
-    # KHAI BÁO CÁC HÀM BÀI TẬP - PHIÊN BẢN JAVASCRIPT SIÊU MƯỢT (NO LAG)
-    # ---------------------------------------------------------------------
     @st.fragment
     def run_ex1_dynamic(q_data, idx):
         st.markdown("### 🧩 EXERCISE 1: WORD PUZZLE")
@@ -211,15 +213,14 @@ elif st.session_state['role'] == 'student':
             </div>
             <div class="keyboard" id="keyboard"></div>
             <div id="msg"></div>
-
+    
             <script>
                 const targetWord = {js_word};
                 const initialChars = {js_chars};
                 let answer = [];
                 let keyStates = initialChars.map((c, i) => ({{ id: i, char: c, used: false }}));
-
+    
                 function render() {{
-                    // Render Slots
                     const slotsEl = document.getElementById('slots');
                     slotsEl.innerHTML = '';
                     for (let i = 0; i < targetWord.length; i++) {{
@@ -230,7 +231,6 @@ elif st.session_state['role'] == 'student':
                         slotsEl.appendChild(div);
                     }}
                     
-                    // Render Keyboard
                     const kbEl = document.getElementById('keyboard');
                     kbEl.innerHTML = '';
                     keyStates.forEach(k => {{
@@ -249,7 +249,7 @@ elif st.session_state['role'] == 'student':
                         kbEl.appendChild(btn);
                     }});
                 }}
-
+    
                 function deleteLast() {{
                     if (answer.length > 0) {{
                         let last = answer.pop();
@@ -258,14 +258,14 @@ elif st.session_state['role'] == 'student':
                         render();
                     }}
                 }}
-
+    
                 function resetAll() {{
                     answer = [];
                     keyStates.forEach(k => k.used = false);
                     document.getElementById('msg').innerHTML = '';
                     render();
                 }}
-
+    
                 function checkWin() {{
                     if (answer.length === targetWord.length) {{
                         let currentStr = answer.map(a => a.char).join('');
@@ -281,9 +281,8 @@ elif st.session_state['role'] == 'student':
         </body>
         </html>
         """
-        import streamlit.components.v1 as components
         components.html(html_code, height=350)
-
+    
     @st.fragment
     def run_ex2_dynamic(q_data, idx):
         st.markdown("### 📝 EXERCISE 2: FILL IN THE BLANK")
@@ -320,13 +319,13 @@ elif st.session_state['role'] == 'student':
             <div class="opts" id="opts-container"></div>
             <button class="btn-check" onclick="checkAnswer()">🚀 SUBMIT ANSWER</button>
             <div id="msg"></div>
-
+    
             <script>
                 const qText = {js_q};
                 const correctAns = {js_ans};
                 const options = {js_opts};
                 let selectedOpt = null;
-
+    
                 function render() {{
                     let displayWord = selectedOpt ? selectedOpt : "";
                     let htmlQ = qText.replace('___________', `<span class="blank ${{selectedOpt ? 'filled' : ''}}">${{displayWord}}</span>`);
@@ -342,7 +341,7 @@ elif st.session_state['role'] == 'student':
                         optsEl.appendChild(btn);
                     }});
                 }}
-
+    
                 function checkAnswer() {{
                     if (!selectedOpt) {{
                         document.getElementById('msg').innerHTML = "<span style='color:#fdcb6e;'>⚠️ Please select a word first!</span>";
@@ -360,15 +359,14 @@ elif st.session_state['role'] == 'student':
         </body>
         </html>
         """
-        import streamlit.components.v1 as components
         components.html(html_code, height=350)
-
+    
     @st.fragment
     def run_ex3_dynamic(all_qs, idx):
         st.markdown("### 🔗 EXERCISE 3: MATCHING")
         ex3_qs = [q for q in all_qs if q['ex_type'] == 'Ex3']
         if not ex3_qs:
-            st.error("Không đủ dữ liệu tạo bài nối.")
+            st.error("⚠️ Not enough data to create a matching exercise.")
             return
             
         lefts = [q['question'] for q in ex3_qs]
@@ -379,7 +377,7 @@ elif st.session_state['role'] == 'student':
         js_pairs = json.dumps({q['question']: q['answer'] for q in ex3_qs})
         js_lefts = json.dumps(lefts)
         js_rights = json.dumps(rights)
-
+    
         html_code = f"""
         <!DOCTYPE html>
         <html>
@@ -403,14 +401,14 @@ elif st.session_state['role'] == 'student':
                 <div class="col" id="col-b"></div>
             </div>
             <div id="msg"></div>
-
+    
             <script>
                 const pairs = {js_pairs};
                 const arrA = {js_lefts};
                 const arrB = {js_rights};
                 let selA = null; let selB = null;
                 let doneA = []; let doneB = [];
-
+    
                 function render() {{
                     const colA = document.getElementById('col-a');
                     colA.innerHTML = '<h4 style="color: #d63031; margin-bottom: 5px;">COLUMN A</h4>';
@@ -423,7 +421,7 @@ elif st.session_state['role'] == 'student':
                         }};
                         colA.appendChild(btn);
                     }});
-
+    
                     const colB = document.getElementById('col-b');
                     colB.innerHTML = '<h4 style="color: #0984e3; margin-bottom: 5px;">COLUMN B</h4>';
                     arrB.forEach(val => {{
@@ -436,7 +434,7 @@ elif st.session_state['role'] == 'student':
                         colB.appendChild(btn);
                     }});
                 }}
-
+    
                 function checkMatch() {{
                     if (selA && selB) {{
                         if (pairs[selA] === selB) {{
@@ -459,7 +457,6 @@ elif st.session_state['role'] == 'student':
         </body>
         </html>
         """
-        import streamlit.components.v1 as components
         components.html(html_code, height=450)
 
     @st.fragment
@@ -614,45 +611,37 @@ elif st.session_state['role'] == 'student':
         </body>
         </html>
         """
-        import streamlit.components.v1 as components
         components.html(html_game_code, height=1050)
 
-    # ---------------------------------------------------------------------
-    # GIAO DIỆN ĐĂNG NHẬP & LUỒNG HỌC TẬP CHÍNH
-    # ---------------------------------------------------------------------
     st.markdown("<h3 style='text-align: center; color: #0984e3;'>🎒 Student Login</h3>", unsafe_allow_html=True)
     
     class_code_input = st.text_input("🔑 Enter your Class Code:").strip().upper()
     
     if class_code_input:
-        # Lấy thông tin lớp từ Database
-        class_res = supabase.table("classes").select("*").eq("class_code", class_code_input).execute()
+        # Tận dụng RAM Caching siêu tốc thay vì tải trực tiếp
+        class_data = get_class_info(class_code_input)
         
-        if not class_res.data:
+        if not class_data:
             st.error("❌ Class Code not found!")
         else:
-            class_name = class_res.data[0]['class_name']
+            class_name = class_data[0]['class_name']
             st.success(f"🏫 Found class: **{class_name}**")
             
-            # Kéo toàn bộ học sinh của lớp đó từ Database về
-            students_res = supabase.table("students").select("*").eq("class_code", class_code_input).execute()
-            students_in_class = students_res.data
+            # Tận dụng RAM Caching lấy danh sách học sinh mượt mà
+            students_in_class = get_students_in_class(class_code_input)
             
             if len(students_in_class) == 0:
-                st.warning("No students added to this class yet!")
+                st.warning("⚠️ No students added to this class yet!")
             else:
                 student_options = ["👇 Click here..."] + [s['student_name'] for s in students_in_class]
                 selected_name = st.selectbox("Who are you?", options=student_options)
                 
-                # BƯỚC 3: KIỂM TRA ĐĂNG NHẬP THÀNH CÔNG -> MỚI MỞ GIAO DIỆN HỌC TẬP
                 if selected_name != "👇 Click here...":
                     st.markdown("---")
                     
-                    # Lấy thông tin học sinh (để lấy avatar)
                     student_info = next(item for item in students_in_class if item["student_name"] == selected_name)
                     avatar_src = f"data:image/jpeg;base64,{student_info['avatar']}" if student_info['avatar'] else "https://cdn-icons-png.flaticon.com/512/149/149071.png"
                     
-                    # Dùng Flexbox gộp chung Avatar và Bong bóng chat
                     st.markdown(f"""
                         <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
                             <img src="{avatar_src}" style="width: 110px; height: 110px; border-radius: 50%; object-fit: cover; border: 4px solid #0984e3; box-shadow: 0 4px 10px rgba(0,0,0,0.15); flex-shrink: 0;">
@@ -662,7 +651,6 @@ elif st.session_state['role'] == 'student':
                         </div>
                     """, unsafe_allow_html=True)
                  
-                    # Biến toàn cục lưu trạng thái bài học
                     if 'playlist' not in st.session_state:
                         st.session_state['playlist'] = []
                         st.session_state['current_q'] = 0
@@ -670,12 +658,7 @@ elif st.session_state['role'] == 'student':
 
                     st.markdown("---")
 
-                    # =========================================================
-                    # CƠ CHẾ GIẤU MENU (CHỈ HIỆN 1 TRONG 2 TRẠNG THÁI)
-                    # =========================================================
                     if len(st.session_state['playlist']) == 0:
-                        
-                        # --- TRẠNG THÁI 1: CHƯA BẤM START -> HIỆN MENU CHỌN ---
                         st.markdown("### 🎯 CHOOSE YOUR MISSION")
 
                         col_b, col_u, col_t = st.columns(3)
@@ -687,15 +670,13 @@ elif st.session_state['role'] == 'student':
                             sel_topic = st.selectbox("🌟 Topic:", ["Animals", "Colors", "Greetings", "Family"])
 
                         if st.button("🚀 START MISSION", type="primary", use_container_width=True):
-                            with st.spinner("Đang xào bài và chuẩn bị thử thách..."):
+                            with st.spinner("Shuffling questions and preparing missions..."):
                                 try:
-                                    # Kéo dữ liệu từ Supabase
-                                    res = supabase.table("questions").select("*") \
-                                            .eq("book", sel_book).eq("unit", sel_unit).eq("topic", sel_topic).execute()
-                                    all_qs = res.data
+                                    # Lấy đề bài từ RAM đệm
+                                    all_qs = get_questions(sel_book, sel_unit, sel_topic)
                                     
                                     if not all_qs:
-                                        st.warning("📭 Ôi! Chưa có bài tập nào trong kho cho phần này. Bé chọn chủ đề khác nhé!")
+                                        st.warning("📭 Oops! No missions found for this selection. Please try another topic!")
                                     else:
                                         st.session_state['all_questions'] = all_qs
                                         quick_qs = [q for q in all_qs if q['ex_type'] in ['Ex1', 'Ex2']]
@@ -710,19 +691,17 @@ elif st.session_state['role'] == 'student':
                                         
                                         st.session_state['playlist'] = selected_playlist
                                         st.session_state['current_q'] = 0
-                                        st.rerun() # Load lại trang để chuyển sang trạng thái 2
+                                        st.rerun()
                                 except Exception as e:
-                                    st.error(f"⚠️ Lỗi kết nối lấy đề bài: {e}")
+                                    st.error(f"⚠️ Error fetching missions: {e}")
 
                     else:
-                        
-                        # --- TRẠNG THÁI 2: ĐÃ BẤM START -> GIẤU MENU, HIỆN BÀI TẬP ---
                         total_q = len(st.session_state['playlist'])
                         curr_idx = st.session_state['current_q']
                         current_q_data = st.session_state['playlist'][curr_idx]
                         
                         st.progress((curr_idx + 1) / total_q)
-                        st.caption(f"🚩 Tiến độ: Thử thách số {curr_idx + 1} / {total_q}")
+                        st.caption(f"🚩 Progress: Mission {curr_idx + 1} / {total_q}")
                         
                         col_nav1, col_nav2, col_nav3 = st.columns([1, 2, 1])
                         with col_nav2:
@@ -733,21 +712,20 @@ elif st.session_state['role'] == 'student':
                                     st.rerun()
                                 else:
                                     st.balloons()
-                                    st.success("🎉 XUẤT SẮC! BÉ ĐÃ ĐÁNH BẠI TOÀN BỘ THỬ THÁCH HÔM NAY!")
-                                    st.session_state['playlist'] = [] # Xóa playlist để quay lại Trạng thái 1
+                                    st.success("🎉 EXCELLENT! YOU HAVE COMPLETED ALL MISSIONS TODAY!")
+                                    st.session_state['playlist'] = []
                                     st.rerun()
                                     
                         st.markdown("<br>", unsafe_allow_html=True)
                         
-                        # Gọi giao diện bài tập tương ứng
                         ex_type = current_q_data.get('ex_type', '')
                         if ex_type == 'Ex1': run_ex1_dynamic(current_q_data, curr_idx)
                         elif ex_type == 'Ex2': run_ex2_dynamic(current_q_data, curr_idx)
                         elif ex_type == 'Ex3': run_ex3_dynamic(st.session_state['all_questions'], curr_idx)
                         elif ex_type == 'Ex4': run_ex4_dynamic(st.session_state['all_questions'], curr_idx)
-                        else: st.error("⚠️ Hệ thống không nhận diện được loại bài tập này.")
+                        else: st.error("⚠️ System cannot recognize this mission type.")
                 
-# ================= 6. GÓC GIÁO VIÊN (TEACHER PORTAL) =================
+# ================= 6. TEACHER PORTAL =================
 elif st.session_state['role'] == 'teacher':
     if not st.session_state['is_teacher_logged_in']:
         st.markdown("### 👨‍🏫 Teacher Login")
@@ -758,7 +736,7 @@ elif st.session_state['role'] == 'teacher':
             if res.data:
                 st.session_state['is_teacher_logged_in'] = True
                 st.session_state['current_teacher'] = res.data[0]['full_name']
-                st.session_state['current_teacher_username'] = res.data[0]['username'] # Lưu lại ID để lọc danh sách
+                st.session_state['current_teacher_username'] = res.data[0]['username']
                 st.rerun()
             else:
                 st.error("❌ Invalid username or password. Please contact Admin.")
@@ -773,10 +751,8 @@ elif st.session_state['role'] == 'teacher':
             
         st.markdown("---")
         
-        # TEACHER DASHBOARD
         tab_assign, tab_bank, tab_student = st.tabs(["🛠️ Assign Homework", "🏦 Question Bank", "👧🏻 Manage Students"])
         
-        # --------- TAB 1: ASSIGN HOMEWORK ---------
         with tab_assign:
             st.markdown("#### Create New Session")
             col1, col2 = st.columns(2)
@@ -797,28 +773,24 @@ elif st.session_state['role'] == 'teacher':
                     }
                     st.success(f"Successfully published assignment for {sach} ({', '.join(units)})!")
 
-        # --------- TAB 2: QUESTION BANK ---------
         with tab_bank:
             st.markdown("#### 🏦 Import Questions from Excel")
-            st.info("💡 **Hướng dẫn:** File Excel tải lên cần có dòng tiêu đề: **Book, Unit, Topic, Type, Question, Answer, Options**")
+            st.info("💡 **Instruction:** The uploaded Excel file must have headers: **Book, Unit, Topic, Type, Question, Answer, Options**")
             
-            # 1. KHU VỰC TẢI FILE
-            uploaded_file = st.file_uploader("📥 Tải file Excel (.xlsx) lên đây", type=["xlsx"])
+            uploaded_file = st.file_uploader("📥 Upload Excel file (.xlsx) here", type=["xlsx"])
             
             if uploaded_file:
                 try:
                     import pandas as pd
-                    # Đọc file Excel
                     df = pd.read_excel(uploaded_file)
-                    df = df.dropna(how='all') # Bỏ các dòng trống
+                    df = df.dropna(how='all')
                     
-                    st.write("👀 **Bản xem trước dữ liệu:**")
-                    st.dataframe(df.head(5), use_container_width=True) # Chỉ hiện 5 dòng đầu cho lẹ
+                    st.write("👀 **Data Preview:**")
+                    st.dataframe(df.head(5), use_container_width=True)
                     
                     if st.button("🚀 UPLOAD TO DATABASE", type="primary", use_container_width=True):
-                        with st.spinner("Đang đẩy dữ liệu lên kho Supabase..."):
+                        with st.spinner("Uploading data to Supabase..."):
                             success_count = 0
-                            # Vòng lặp chuyển từng dòng Excel lên Cloud
                             for index, row in df.iterrows():
                                 try:
                                     data_insert = {
@@ -830,33 +802,28 @@ elif st.session_state['role'] == 'teacher':
                                         "answer": str(row.get('Answer', '')).strip(),
                                         "options": str(row.get('Options', '')).strip() if pd.notna(row.get('Options')) else ""
                                     }
-                                    # Lệnh bóp cò bắn dữ liệu
                                     supabase.table("questions").insert(data_insert).execute()
                                     success_count += 1
                                 except Exception as err:
-                                    st.error(f"⚠️ Lỗi ở dòng {index + 2}: {err}")
+                                    st.error(f"⚠️ Error at row {index + 2}: {err}")
                             
-                            st.success(f"🎉 Xuất sắc! Đã nạp thành công {success_count} câu hỏi vào kho!")
+                            st.success(f"🎉 Excellent! Successfully uploaded {success_count} questions!")
                             st.balloons()
                 except Exception as e:
-                    st.error(f"❌ File Excel không hợp lệ. Lỗi: {e}")
+                    st.error(f"❌ Invalid Excel file. Error: {e}")
                     
             st.markdown("---")
             
-            # 2. KHU VỰC QUẢN LÝ KHO DỮ LIỆU CHÍNH THỨC
-            st.markdown("#### 📋 Question Library (Kho câu hỏi hiện tại trên Cloud)")
+            st.markdown("#### 📋 Question Library (Cloud Database)")
             
-            # Bộ lọc để giáo viên tìm kiếm (Bây giờ có thêm lọc theo Topic)
             col_loc1, col_loc2 = st.columns(2)
             with col_loc1:
-                filter_book = st.selectbox("📚 Lọc theo Sách:", ["All", "Kid's Box 1", "Kid's Box 2", "Kid's Box 3"])
+                filter_book = st.selectbox("📚 Filter by Book:", ["All", "Kid's Box 1", "Kid's Box 2", "Kid's Box 3"])
             with col_loc2:
-                # Nút Refresh siêu tốc
-                if st.button("🔄 Làm mới danh sách", use_container_width=True):
+                if st.button("🔄 Refresh List", use_container_width=True):
                     st.rerun()
             
             try:
-                # Đọc dữ liệu từ Supabase về
                 if filter_book == "All":
                     res_q = supabase.table("questions").select("*").execute()
                 else:
@@ -865,19 +832,16 @@ elif st.session_state['role'] == 'teacher':
                 db_questions = res_q.data
                 
                 if db_questions:
-                    # Đưa vào Pandas để hiển thị bảng thật đẹp
                     df_view = pd.DataFrame(db_questions)
-                    # Sắp xếp lại cột cho dễ nhìn
                     df_view = df_view[['id', 'book', 'unit', 'topic', 'ex_type', 'question', 'answer', 'options']]
                     
                     st.dataframe(df_view, use_container_width=True, hide_index=True)
-                    st.caption(f"📊 Tổng cộng: **{len(db_questions)}** câu hỏi trong kho.")
+                    st.caption(f"📊 Total: **{len(db_questions)}** questions in database.")
                 else:
-                    st.warning("📭 Kho dữ liệu đang trống. Hãy tải file Excel lên nhé!")
+                    st.warning("📭 Database is empty. Please upload an Excel file!")
             except Exception as e:
-                st.error("⚠️ Lỗi kết nối Supabase! Bồ kiểm tra lại xem đã tạo bảng 'questions' chưa nhé.")
+                st.error("⚠️ Supabase connection error! Please check your table structure.")
 
-       # --------- TAB 3: MANAGE STUDENTS ---------
         with tab_student:
             st.markdown("**Add Student to Class**")
             res_classes = supabase.table("classes").select("*").eq("teacher_username", st.session_state['current_teacher_username']).execute()
@@ -895,35 +859,30 @@ elif st.session_state['role'] == 'teacher':
                 
                 avatar_b64 = None
                 
-                # --- GIAO DIỆN CẮT ẢNH TƯƠNG TÁC ---
                 if s_avatar:
                     st.info("✂️ Drag and resize the blue box to frame the face. (The square will automatically become a circle later!)")
-                    # Mở ảnh bằng thư viện PIL
                     img = Image.open(s_avatar)
-                    
-                    # Gọi công cụ cắt ảnh (Ép tỉ lệ 1:1 hình vuông để CSS tự bo thành hình tròn chuẩn)
                     cropped_img = st_cropper(img, aspect_ratio=(1, 1), box_color='#0984e3', return_type='image')
                     
-                    # Biến ảnh đã cắt thành Base64 để lưu vào Database
                     buffered = io.BytesIO()
                     cropped_img.save(buffered, format="PNG")
                     avatar_b64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
                 
-                # Nút Submit (Đã đưa ra ngoài form)
                 if st.button("➕ ADD STUDENT", type="primary"):
                     if s_name:
                         try:
                             supabase.table("students").insert({
                                 "class_code": selected_code, "student_name": s_name, "avatar": avatar_b64
                             }).execute()
+                            # Xóa Cache để cập nhật ngay danh sách học sinh mới
+                            get_students_in_class.clear()
                             st.success(f"✅ Added {s_name} to class {selected_code} successfully!")
-                            st.rerun() # Tự động load lại trang để cập nhật danh sách ngay lập tức
+                            st.rerun() 
                         except Exception as e:
                             st.error(f"❌ Error adding student: {e}")
                     else:
                         st.error("⚠️ Please enter the student's name.")
                             
-            # Xem danh sách học sinh
             st.markdown("---")
             if db_classes:
                 view_class = st.selectbox("View Students in Class:", options=[c['class_code'] for c in db_classes], format_func=lambda x: next(c['class_name'] for c in db_classes if c['class_code'] == x))
@@ -944,7 +903,7 @@ elif st.session_state['role'] == 'teacher':
                     else:
                         st.info("No students in this class yet.")
 
-# ================= 7. GÓC QUẢN TRỊ VIÊN (ADMIN PORTAL) =================
+# ================= 7. ADMIN PORTAL =================
 elif st.session_state['role'] == 'admin':
     if 'is_admin_logged_in' not in st.session_state:
         st.session_state['is_admin_logged_in'] = False
@@ -970,7 +929,6 @@ elif st.session_state['role'] == 'admin':
             
         tab_tch, tab_cls = st.tabs(["👨‍🏫 Manage Teachers", "🏫 Manage Classes"])
         
-        # QUẢN LÝ GIÁO VIÊN
         with tab_tch:
             st.markdown("**Create Teacher Accounts**")
             with st.form("add_teacher", clear_on_submit=True):
@@ -987,11 +945,9 @@ elif st.session_state['role'] == 'admin':
                     else:
                         st.warning("Please fill all fields.")
                             
-        # QUẢN LÝ MÃ LỚP TRUNG TÂM
         with tab_cls:
             st.markdown("**Create Official Classes & Assign Teachers**")
             
-            # Kéo danh sách giáo viên về trước
             res_tch = supabase.table("teachers").select("*").execute()
             db_teachers = res_tch.data
             
@@ -1002,7 +958,6 @@ elif st.session_state['role'] == 'admin':
                     c_code = st.text_input("Class Code (e.g., ENG101):").strip().upper()
                     c_name = st.text_input("Class Name (e.g., Movers 1):").strip()
                     
-                    # Danh sách chọn giáo viên
                     teacher_options = [f"{t['username']} - {t['full_name']}" for t in db_teachers]
                     selected_teacher_full = st.selectbox("Assign Teacher:", teacher_options)
                     selected_t_username = selected_teacher_full.split(" - ")[0]
@@ -1015,6 +970,8 @@ elif st.session_state['role'] == 'admin':
                                     "class_name": c_name,
                                     "teacher_username": selected_t_username
                                 }).execute()
+                                # Xóa Cache danh sách lớp để học sinh login ngay lập tức được
+                                get_class_info.clear() 
                                 st.success(f"✅ Class {c_name} assigned to teacher '{selected_t_username}' successfully!")
                             except Exception as e:
                                 st.error(f"❌ Error adding class: {e}")
