@@ -44,6 +44,15 @@ def get_students_in_class(class_code):
 def get_questions(book, unit, topic):
     return supabase.table("questions").select("*").eq("book", book).eq("unit", unit).eq("topic", topic).execute().data
 
+@st.cache_data(ttl=300)
+def get_available_missions():
+    # Quét toàn bộ kho câu hỏi, nhưng chỉ lấy 3 cột (book, unit, topic) để tiết kiệm RAM
+    res = supabase.table("questions").select("book, unit, topic").execute()
+    if res.data:
+        # Dùng Pandas để lọc bỏ các dòng trùng lặp (ví dụ 100 câu của Unit 1 sẽ gộp lại thành 1 dòng Unit 1)
+        return pd.DataFrame(res.data).drop_duplicates()
+    return pd.DataFrame()
+    
 # ================= 1. SYSTEM & UI CONFIGURATION =================
 st.set_page_config(page_title="Smart English Class", page_icon="🏫", layout="centered")
 
@@ -394,18 +403,31 @@ elif st.session_state['role'] == 'student':
 
                     elif len(st.session_state['playlist']) == 0:
                         
+                        # --- TRẠNG THÁI 1: CHƯA BẤM START -> HIỆN MENU CHỌN TỪ DB THẬT ---
                         st.markdown("### 🎯 CHOOSE YOUR MISSION")
-                        book_list = ["Kid's Box 1", "Kid's Box 2", "Kid's Box 3", "Kid's Box 4", "Kid's Box 5", "Kid's Box 6"]
 
-                        col_b, col_u, col_t = st.columns(3)
-                        with col_b:
-                            sel_book = st.selectbox("📚 Book:", book_list)
-                        with col_u:
-                            sel_unit = st.selectbox("📖 Unit:", ["Unit 1", "Unit 2", "Unit 3", "Unit 4", "Unit 5"])
-                        with col_t:
-                            sel_topic = st.selectbox("🌟 Topic:", ["Animals", "Colors", "Greetings", "Family"])
+                        # 1. Gọi dữ liệu cấu trúc thật từ Database (Đã Cache siêu tốc)
+                        df_missions = get_available_missions()
+                        
+                        if df_missions.empty:
+                            st.warning("📭 Ngân hàng câu hỏi đang trống. Đợi cô giáo nạp bài tập bồ nhé!")
+                        else:
+                            col_b, col_u, col_t = st.columns(3)
+                            
+                            # 2. Lọc thông minh liên hoàn: Sách -> Unit -> Topic
+                            with col_b:
+                                books = sorted(df_missions['book'].dropna().unique().tolist())
+                                sel_book = st.selectbox("📚 Book:", books)
+                                
+                            with col_u:
+                                units = sorted(df_missions[df_missions['book'] == sel_book]['unit'].dropna().unique().tolist())
+                                sel_unit = st.selectbox("📖 Unit:", units) if units else st.selectbox("📖 Unit:", ["N/A"])
+                                
+                            with col_t:
+                                topics = sorted(df_missions[(df_missions['book'] == sel_book) & (df_missions['unit'] == sel_unit)]['topic'].dropna().unique().tolist())
+                                sel_topic = st.selectbox("🌟 Topic:", topics) if topics else st.selectbox("🌟 Topic:", ["N/A"])
 
-                        if st.button("🚀 START MISSION", type="primary", use_container_width=True):
+                            if st.button("🚀 START MISSION", type="primary", use_container_width=True):
                             with st.spinner("Shuffling questions and preparing missions..."):
                                 try:
                                     all_qs = get_questions(sel_book, sel_unit, sel_topic)
