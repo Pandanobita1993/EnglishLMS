@@ -447,129 +447,129 @@ def run_ex4_dynamic(all_qs, idx):
     import streamlit.components.v1 as components
     components.html(html_game_code, height=1050)
     
-    @st.fragment
-    def run_ex5_dynamic(all_qs, idx):
-        st.markdown("### 🎴 EXERCISE 5: MEMORY FLIP CARDS")
-        st.info("💡 **Mission:** Find and flip the matching pairs (English - Meaning).")
+@st.fragment
+def run_ex5_dynamic(all_qs, idx):
+    st.markdown("### 🎴 EXERCISE 5: MEMORY FLIP CARDS")
+    st.info("💡 **Mission:** Find and flip the matching pairs (English - Meaning).")
+    
+    ex5_qs = [q for q in all_qs if q['ex_type'] == 'Ex5']
+    if not ex5_qs:
+        st.error("⚠️ Not enough data to create a flip card exercise.")
+        return
         
-        ex5_qs = [q for q in all_qs if q['ex_type'] == 'Ex5']
-        if not ex5_qs:
-            st.error("⚠️ Not enough data to create a flip card exercise.")
-            return
-            
-        if len(ex5_qs) > 6: ex5_qs = random.sample(ex5_qs, 6)
-        
-        cards = []
-        for i, q in enumerate(ex5_qs):
-            cards.append({'id': f"en_{i}", 'pair_id': i, 'text': q['question'], 'type': 'en'})
-            cards.append({'id': f"vi_{i}", 'pair_id': i, 'text': q['answer'], 'type': 'vi'})
-        
-        random.shuffle(cards)
-        js_cards = json.dumps(cards)
-        
-        html_code = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-        <style>
-            body {{ font-family: 'Nunito', sans-serif; text-align: center; user-select: none; background: transparent; margin: 0; padding: 10px; }}
-            .grid-container {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; max-width: 600px; margin: 0 auto; perspective: 1000px; }}
-            .card {{ width: 100%; aspect-ratio: 4/3; position: relative; transform-style: preserve-3d; transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1); cursor: pointer; }}
-            .card.flipped {{ transform: rotateY(180deg); }}
-            .card.matched {{ visibility: hidden; opacity: 0; transition: visibility 0s 0.5s, opacity 0.5s linear; }}
-            .card-face {{ position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold; padding: 10px; box-sizing: border-box; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }}
-            .card-front {{ background: linear-gradient(135deg, #74b9ff, #0984e3); color: white; font-size: 24px; }}
-            .card-front::after {{ content: '?'; }}
-            .card-back {{ background: white; color: #2d3436; transform: rotateY(180deg); border: 2px solid #0984e3; }}
-            .card-back.type-en {{ color: #d63031; border-color: #ff7675; }}
-            .card-back.type-vi {{ color: #00b894; border-color: #55efc4; }}
-            #msg {{ margin-top: 25px; font-size: 18px; font-weight: bold; height: 30px; }}
-            @media (max-width: 480px) {{ .grid-container {{ grid-template-columns: repeat(3, 1fr); }} }}
-        </style>
-        </head>
-        <body>
-            <div class="grid-container" id="grid"></div>
-            <div id="msg"></div>
+    if len(ex5_qs) > 6: ex5_qs = random.sample(ex5_qs, 6)
     
-            <script>
-                const cardsData = {js_cards};
-                const gridEl = document.getElementById('grid');
-                let hasFlippedCard = false;
-                let lockBoard = false;
-                let firstCard, secondCard;
-                let matchedPairs = 0;
+    cards = []
+    for i, q in enumerate(ex5_qs):
+        cards.append({'id': f"en_{i}", 'pair_id': i, 'text': q['question'], 'type': 'en'})
+        cards.append({'id': f"vi_{i}", 'pair_id': i, 'text': q['answer'], 'type': 'vi'})
     
-                cardsData.forEach((card, index) => {{
-                    const cardEl = document.createElement('div');
-                    cardEl.classList.add('card');
-                    cardEl.dataset.pair = card.pair_id;
-                    
-                    const front = document.createElement('div');
-                    front.classList.add('card-face', 'card-front');
-                    
-                    const back = document.createElement('div');
-                    back.classList.add('card-face', 'card-back', 'type-' + card.type);
-                    back.innerText = card.text;
-                    
-                    cardEl.appendChild(front);
-                    cardEl.appendChild(back);
-                    cardEl.addEventListener('click', flipCard);
-                    gridEl.appendChild(cardEl);
-                }});
+    random.shuffle(cards)
+    js_cards = json.dumps(cards)
     
-                function flipCard() {{
-                    if (lockBoard) return;
-                    if (this === firstCard) return;
-    
-                    this.classList.add('flipped');
-    
-                    if (!hasFlippedCard) {{
-                        hasFlippedCard = true;
-                        firstCard = this;
-                        return;
+    html_code = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <style>
+        body {{ font-family: 'Nunito', sans-serif; text-align: center; user-select: none; background: transparent; margin: 0; padding: 10px; }}
+        .grid-container {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; max-width: 600px; margin: 0 auto; perspective: 1000px; }}
+        .card {{ width: 100%; aspect-ratio: 4/3; position: relative; transform-style: preserve-3d; transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1); cursor: pointer; }}
+        .card.flipped {{ transform: rotateY(180deg); }}
+        .card.matched {{ visibility: hidden; opacity: 0; transition: visibility 0s 0.5s, opacity 0.5s linear; }}
+        .card-face {{ position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold; padding: 10px; box-sizing: border-box; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }}
+        .card-front {{ background: linear-gradient(135deg, #74b9ff, #0984e3); color: white; font-size: 24px; }}
+        .card-front::after {{ content: '?'; }}
+        .card-back {{ background: white; color: #2d3436; transform: rotateY(180deg); border: 2px solid #0984e3; }}
+        .card-back.type-en {{ color: #d63031; border-color: #ff7675; }}
+        .card-back.type-vi {{ color: #00b894; border-color: #55efc4; }}
+        #msg {{ margin-top: 25px; font-size: 18px; font-weight: bold; height: 30px; }}
+        @media (max-width: 480px) {{ .grid-container {{ grid-template-columns: repeat(3, 1fr); }} }}
+    </style>
+    </head>
+    <body>
+        <div class="grid-container" id="grid"></div>
+        <div id="msg"></div>
+
+        <script>
+            const cardsData = {js_cards};
+            const gridEl = document.getElementById('grid');
+            let hasFlippedCard = false;
+            let lockBoard = false;
+            let firstCard, secondCard;
+            let matchedPairs = 0;
+
+            cardsData.forEach((card, index) => {{
+                const cardEl = document.createElement('div');
+                cardEl.classList.add('card');
+                cardEl.dataset.pair = card.pair_id;
+                
+                const front = document.createElement('div');
+                front.classList.add('card-face', 'card-front');
+                
+                const back = document.createElement('div');
+                back.classList.add('card-face', 'card-back', 'type-' + card.type);
+                back.innerText = card.text;
+                
+                cardEl.appendChild(front);
+                cardEl.appendChild(back);
+                cardEl.addEventListener('click', flipCard);
+                gridEl.appendChild(cardEl);
+            }});
+
+            function flipCard() {{
+                if (lockBoard) return;
+                if (this === firstCard) return;
+
+                this.classList.add('flipped');
+
+                if (!hasFlippedCard) {{
+                    hasFlippedCard = true;
+                    firstCard = this;
+                    return;
+                }}
+
+                secondCard = this;
+                checkForMatch();
+            }}
+
+            function checkForMatch() {{
+                let isMatch = firstCard.dataset.pair === secondCard.dataset.pair;
+                isMatch ? disableCards() : unflipCards();
+            }}
+
+            function disableCards() {{
+                lockBoard = true;
+                setTimeout(() => {{
+                    firstCard.classList.add('matched');
+                    secondCard.classList.add('matched');
+                    resetBoard();
+                    matchedPairs++;
+                    if (matchedPairs === cardsData.length / 2) {{
+                        document.getElementById('msg').innerHTML = "<span style='color:#00b894;'>🎉 Excellent! You have a super memory!</span>";
                     }}
-    
-                    secondCard = this;
-                    checkForMatch();
-                }}
-    
-                function checkForMatch() {{
-                    let isMatch = firstCard.dataset.pair === secondCard.dataset.pair;
-                    isMatch ? disableCards() : unflipCards();
-                }}
-    
-                function disableCards() {{
-                    lockBoard = true;
-                    setTimeout(() => {{
-                        firstCard.classList.add('matched');
-                        secondCard.classList.add('matched');
-                        resetBoard();
-                        matchedPairs++;
-                        if (matchedPairs === cardsData.length / 2) {{
-                            document.getElementById('msg').innerHTML = "<span style='color:#00b894;'>🎉 Excellent! You have a super memory!</span>";
-                        }}
-                    }}, 800);
-                }}
-    
-                function unflipCards() {{
-                    lockBoard = true;
-                    setTimeout(() => {{
-                        firstCard.classList.remove('flipped');
-                        secondCard.classList.remove('flipped');
-                        resetBoard();
-                    }}, 1000);
-                }}
-    
-                function resetBoard() {{
-                    [hasFlippedCard, lockBoard] = [false, false];
-                    [firstCard, secondCard] = [null, null];
-                }}
-            </script>
-        </body>
-        </html>
-        """
-        import streamlit.components.v1 as components
-        components.html(html_code, height=500)
+                }}, 800);
+            }}
+
+            function unflipCards() {{
+                lockBoard = true;
+                setTimeout(() => {{
+                    firstCard.classList.remove('flipped');
+                    secondCard.classList.remove('flipped');
+                    resetBoard();
+                }}, 1000);
+            }}
+
+            function resetBoard() {{
+                [hasFlippedCard, lockBoard] = [false, false];
+                [firstCard, secondCard] = [null, null];
+            }}
+        </script>
+    </body>
+    </html>
+    """
+    import streamlit.components.v1 as components
+    components.html(html_code, height=500)
         
     @st.fragment
     def run_ex6_dynamic(q_data, idx):
@@ -630,3 +630,28 @@ def run_ex4_dynamic(all_qs, idx):
                     box.innerText = word;
                     listEl.appendChild(box);
                 }});
+                new Sortable(listEl, {{
+                animation: 150,
+                ghostClass: 'sortable-ghost'
+            }});
+
+            function checkOrder() {{
+                const currentOrder = Array.from(listEl.children).map(el => el.innerText).join(' ');
+                if (currentOrder === correctSentence) {{
+                    document.getElementById('msg').innerHTML = "<span style='color:#00b894;'>✅ Awesome! You've matched the sentence correctly!</span>";
+                    listEl.style.borderColor = '#00b894';
+                    listEl.style.backgroundColor = '#e1fcf4';
+                }} else {{
+                    document.getElementById('msg').innerHTML = "<span style='color:#ff7675;'>❌ Not quite! Let's try rearranging them again!</span>";
+                    listEl.style.borderColor = '#ff7675';
+                }}
+            }}
+        </script>
+    </body>
+    </html>
+    """
+    
+    # Tự động nới rộng khung giao diện nếu có hình ảnh để không bị xuất hiện thanh cuộn (scroll)
+    frame_height = 600 if image_url and image_url.lower() not in ['nan', 'none', ''] else 350
+    import streamlit.components.v1 as components
+    components.html(html_code, height=frame_height)
