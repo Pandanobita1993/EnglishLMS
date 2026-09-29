@@ -602,18 +602,37 @@ def run_ex6_dynamic(q_data, idx):
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <style>
         body {{ font-family: 'Nunito', sans-serif; text-align: center; background: transparent; padding: 10px; margin: 0; user-select: none; }}
-        .hint-img {{ max-width: 100%; max-height: 250px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border: 3px solid #dfe6e9; object-fit: contain; }}
-        .train-track {{ background: rgba(255,255,255,0.7); padding: 25px; border-radius: 15px; border: 3px dashed #b2bec3; min-height: 80px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center; margin-bottom: 25px; }}
-        .word-box {{ padding: 12px 20px; font-size: 18px; font-weight: bold; background: white; color: #0984e3; border: 2px solid #74b9ff; border-radius: 8px; cursor: grab; box-shadow: 0 4px 0 #74b9ff; display: inline-block; transition: transform 0.1s; }}
-        .word-box:active {{ cursor: grabbing; transform: translateY(4px); box-shadow: 0 0 0 #74b9ff; }}
-        .sortable-ghost {{ opacity: 0.4; background-color: #dfe6e9; border-color: #b2bec3; box-shadow: none; }}
-        .btn-check {{ margin-top: 15px; padding: 12px 35px; background: linear-gradient(90deg, #ff6b6b, #feca57); color: white; border: none; border-radius: 25px; font-size: 18px; font-weight: bold; cursor: pointer; box-shadow: 0 5px 15px rgba(255,107,107,0.4); }}
-        #msg {{ margin-top: 20px; font-size: 18px; font-weight: bold; }}
+        .hint-img {{ max-width: 100%; max-height: 250px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border: 3px solid #dfe6e9; object-fit: contain; background: white; }}
+        
+        /* Bọc nền trắng cho chữ hướng dẫn để luôn đọc được trên mọi phông nền */
+        .instruction-text {{ 
+            color: #2d3436 !important; 
+            background: rgba(255, 255, 255, 0.9) !important; 
+            padding: 8px 15px; 
+            border-radius: 10px; 
+            display: inline-block; 
+            margin-bottom: 15px; 
+            margin-top: 5px;
+            border: 2px solid #dfe6e9;
+            font-size: 16px;
+            font-weight: bold;
+        }}
+        
+        /* Ép khung nền luôn sáng sủa */
+        .train-track {{ background: rgba(255, 255, 255, 0.85) !important; padding: 25px; border-radius: 15px; border: 3px dashed #74b9ff !important; min-height: 80px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }}
+        
+        /* Ép các viên gạch từ vựng nền trắng, chữ xanh */
+        .word-box {{ padding: 12px 20px; font-size: 18px; font-weight: bold; background: #ffffff !important; color: #0984e3 !important; border: 2px solid #74b9ff !important; border-radius: 8px; cursor: grab; box-shadow: 0 4px 0 #74b9ff !important; display: inline-block; transition: transform 0.1s; text-shadow: none !important; }}
+        .word-box:active {{ cursor: grabbing; transform: translateY(4px); box-shadow: 0 0 0 #74b9ff !important; }}
+        
+        .sortable-ghost {{ opacity: 0.4; background-color: #dfe6e9 !important; border-color: #b2bec3 !important; box-shadow: none !important; }}
+        .btn-check {{ margin-top: 15px; padding: 12px 35px; background: linear-gradient(90deg, #ff6b6b, #feca57) !important; color: white !important; border: none !important; border-radius: 25px; font-size: 18px; font-weight: bold; cursor: pointer; box-shadow: 0 5px 15px rgba(255,107,107,0.4) !important; text-shadow: none !important; }}
+        #msg {{ margin-top: 20px; font-size: 18px; font-weight: bold; text-shadow: 1px 1px 3px rgba(255,255,255,0.8); }}
     </style>
     </head>
     <body>
         {img_html}
-        <h4 style="color:#2d3436; margin-bottom: 15px; margin-top: 5px;">Drag and drop to rearrange the words into the correct sentence:</h4>
+        <div class="instruction-text">Drag and drop to rearrange the words into the correct sentence:</div>
         <div class="train-track" id="sortable-list"></div>
         <button class="btn-check" onclick="checkOrder()">🚀 SUBMIT SENTENCE</button>
         <div id="msg"></div>
@@ -653,4 +672,5 @@ def run_ex6_dynamic(q_data, idx):
     
     # Tự động nới rộng khung giao diện nếu có hình ảnh
     frame_height = 600 if image_url and image_url.lower() not in ['nan', 'none', ''] else 350
+    import streamlit.components.v1 as components
     components.html(html_code, height=frame_height)
