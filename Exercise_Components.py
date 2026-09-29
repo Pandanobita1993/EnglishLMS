@@ -570,6 +570,7 @@ def run_ex4_dynamic(all_qs, idx):
         """
         import streamlit.components.v1 as components
         components.html(html_code, height=500)
+        
     @st.fragment
     def run_ex6_dynamic(q_data, idx):
         st.markdown("### 🚂 EXERCISE 6: SENTENCE TRAIN")
@@ -629,29 +630,3 @@ def run_ex4_dynamic(all_qs, idx):
                     box.innerText = word;
                     listEl.appendChild(box);
                 }});
-    
-                new Sortable(listEl, {{
-                    animation: 150,
-                    ghostClass: 'sortable-ghost'
-                }});
-    
-                function checkOrder() {{
-                    const currentOrder = Array.from(listEl.children).map(el => el.innerText).join(' ');
-                    if (currentOrder === correctSentence) {{
-                        document.getElementById('msg').innerHTML = "<span style='color:#00b894;'>✅ Awesome! You've matched the sentence correctly!</span>";
-                        listEl.style.borderColor = '#00b894';
-                        listEl.style.backgroundColor = '#e1fcf4';
-                    }} else {{
-                        document.getElementById('msg').innerHTML = "<span style='color:#ff7675;'>❌ Not quite! Let's try rearranging them again!</span>";
-                        listEl.style.borderColor = '#ff7675';
-                    }}
-                }}
-            </script>
-        </body>
-        </html>
-        """
-        
-        # Tự động nới rộng khung giao diện nếu có hình ảnh để không bị xuất hiện thanh cuộn (scroll)
-        frame_height = 600 if image_url and image_url.lower() not in ['nan', 'none', ''] else 350
-        import streamlit.components.v1 as components
-        components.html(html_code, height=frame_height)
