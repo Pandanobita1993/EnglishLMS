@@ -200,7 +200,7 @@ elif st.session_state['role'] == 'student':
     import random, string, json
     
     # Kéo các hàm bài tập siêu mượt từ file hệ thống sang
-    from Exercise_Components import run_ex1_dynamic, run_ex2_dynamic, run_ex3_dynamic, run_ex4_dynamic
+    from Exercise_Components import run_ex1_dynamic, run_ex2_dynamic, run_ex3_dynamic, run_ex4_dynamic, run_ex5_dynamic, run_ex6_dynamic
 
     # ---------------------------------------------------------------------
     # GIAO DIỆN ĐĂNG NHẬP & LUỒNG HỌC TẬP CHÍNH
