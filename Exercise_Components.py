@@ -670,7 +670,7 @@ def run_ex6_dynamic(q_data, idx):
     </html>
     """
     
-    # Tự động nới rộng khung giao diện nếu có hình ảnh
-    frame_height = 600 if image_url and image_url.lower() not in ['nan', 'none', ''] else 350
+    # Tự động nới rộng khung giao diện, bật scroll chống lấp nút
+    frame_height = 750 if image_url and image_url.lower() not in ['nan', 'none', ''] else 450
     import streamlit.components.v1 as components
-    components.html(html_code, height=frame_height)
+    components.html(html_code, height=frame_height, scrolling=True)
