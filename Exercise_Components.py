@@ -568,90 +568,90 @@ def run_ex5_dynamic(all_qs, idx):
     </body>
     </html>
     """
-    import streamlit.components.v1 as components
-    components.html(html_code, height=500)
-        
-    @st.fragment
-    def run_ex6_dynamic(q_data, idx):
-        st.markdown("### 🚂 EXERCISE 6: SENTENCE TRAIN")
-        
-        # 1. Lấy dữ liệu gợi ý và hình ảnh
-        hint_text = str(q_data.get('question', '')).strip()
-        image_url = str(q_data.get('options', '')).strip()
-        
-        if hint_text and hint_text.lower() not in ['nan', 'none', '']:
-            st.info(f"💡 **Hint:** {hint_text}")
-            
-        correct_sentence = str(q_data.get('answer', '')).strip()
-        words = correct_sentence.split()
-        
-        # 2. Xáo trộn từ vựng
-        shuffled_words = words.copy()
-        while shuffled_words == words and len(words) > 1:
-            random.shuffle(shuffled_words)
-            
-        js_correct = json.dumps(correct_sentence)
-        js_words = json.dumps(shuffled_words)
-        
-        # 3. Chèn khối hình ảnh nếu có link trong cột Options
-        img_html = f'<img src="{image_url}" class="hint-img">' if image_url and image_url.lower() not in ['nan', 'none', ''] else ''
-        
-        html_code = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-        <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
-        <style>
-            body {{ font-family: 'Nunito', sans-serif; text-align: center; background: transparent; padding: 10px; margin: 0; user-select: none; }}
-            .hint-img {{ max-width: 100%; max-height: 250px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border: 3px solid #dfe6e9; object-fit: contain; }}
-            .train-track {{ background: rgba(255,255,255,0.7); padding: 25px; border-radius: 15px; border: 3px dashed #b2bec3; min-height: 80px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center; margin-bottom: 25px; }}
-            .word-box {{ padding: 12px 20px; font-size: 18px; font-weight: bold; background: white; color: #0984e3; border: 2px solid #74b9ff; border-radius: 8px; cursor: grab; box-shadow: 0 4px 0 #74b9ff; display: inline-block; transition: transform 0.1s; }}
-            .word-box:active {{ cursor: grabbing; transform: translateY(4px); box-shadow: 0 0 0 #74b9ff; }}
-            .sortable-ghost {{ opacity: 0.4; background-color: #dfe6e9; border-color: #b2bec3; box-shadow: none; }}
-            .btn-check {{ margin-top: 15px; padding: 12px 35px; background: linear-gradient(90deg, #ff6b6b, #feca57); color: white; border: none; border-radius: 25px; font-size: 18px; font-weight: bold; cursor: pointer; box-shadow: 0 5px 15px rgba(255,107,107,0.4); }}
-            #msg {{ margin-top: 20px; font-size: 18px; font-weight: bold; }}
-        </style>
-        </head>
-        <body>
-            {img_html}
-            <h4 style="color:#2d3436; margin-bottom: 15px; margin-top: 5px;">Drag and drop to rearrange the words into the correct sentence:</h4>
-            <div class="train-track" id="sortable-list"></div>
-            <button class="btn-check" onclick="checkOrder()">🚀 SUBMIT SENTENCE</button>
-            <div id="msg"></div>
+import streamlit.components.v1 as components
+components.html(html_code, height=500)
     
-            <script>
-                const words = {js_words};
-                const correctSentence = {js_correct};
-                const listEl = document.getElementById('sortable-list');
+@st.fragment
+def run_ex6_dynamic(q_data, idx):
+    st.markdown("### 🚂 EXERCISE 6: SENTENCE TRAIN")
     
-                words.forEach(word => {{
-                    let box = document.createElement('div');
-                    box.className = 'word-box';
-                    box.innerText = word;
-                    listEl.appendChild(box);
-                }});
-                new Sortable(listEl, {{
-                animation: 150,
-                ghostClass: 'sortable-ghost'
-            }});
+    # 1. Lấy dữ liệu gợi ý và hình ảnh
+    hint_text = str(q_data.get('question', '')).strip()
+    image_url = str(q_data.get('options', '')).strip()
+    
+    if hint_text and hint_text.lower() not in ['nan', 'none', '']:
+        st.info(f"💡 **Hint:** {hint_text}")
+        
+    correct_sentence = str(q_data.get('answer', '')).strip()
+    words = correct_sentence.split()
+    
+    # 2. Xáo trộn từ vựng
+    shuffled_words = words.copy()
+    while shuffled_words == words and len(words) > 1:
+        random.shuffle(shuffled_words)
+        
+    js_correct = json.dumps(correct_sentence)
+    js_words = json.dumps(shuffled_words)
+    
+    # 3. Chèn khối hình ảnh nếu có link trong cột Options
+    img_html = f'<img src="{image_url}" class="hint-img">' if image_url and image_url.lower() not in ['nan', 'none', ''] else ''
+    
+    html_code = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <style>
+        body {{ font-family: 'Nunito', sans-serif; text-align: center; background: transparent; padding: 10px; margin: 0; user-select: none; }}
+        .hint-img {{ max-width: 100%; max-height: 250px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border: 3px solid #dfe6e9; object-fit: contain; }}
+        .train-track {{ background: rgba(255,255,255,0.7); padding: 25px; border-radius: 15px; border: 3px dashed #b2bec3; min-height: 80px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center; margin-bottom: 25px; }}
+        .word-box {{ padding: 12px 20px; font-size: 18px; font-weight: bold; background: white; color: #0984e3; border: 2px solid #74b9ff; border-radius: 8px; cursor: grab; box-shadow: 0 4px 0 #74b9ff; display: inline-block; transition: transform 0.1s; }}
+        .word-box:active {{ cursor: grabbing; transform: translateY(4px); box-shadow: 0 0 0 #74b9ff; }}
+        .sortable-ghost {{ opacity: 0.4; background-color: #dfe6e9; border-color: #b2bec3; box-shadow: none; }}
+        .btn-check {{ margin-top: 15px; padding: 12px 35px; background: linear-gradient(90deg, #ff6b6b, #feca57); color: white; border: none; border-radius: 25px; font-size: 18px; font-weight: bold; cursor: pointer; box-shadow: 0 5px 15px rgba(255,107,107,0.4); }}
+        #msg {{ margin-top: 20px; font-size: 18px; font-weight: bold; }}
+    </style>
+    </head>
+    <body>
+        {img_html}
+        <h4 style="color:#2d3436; margin-bottom: 15px; margin-top: 5px;">Drag and drop to rearrange the words into the correct sentence:</h4>
+        <div class="train-track" id="sortable-list"></div>
+        <button class="btn-check" onclick="checkOrder()">🚀 SUBMIT SENTENCE</button>
+        <div id="msg"></div>
 
-            function checkOrder() {{
-                const currentOrder = Array.from(listEl.children).map(el => el.innerText).join(' ');
-                if (currentOrder === correctSentence) {{
-                    document.getElementById('msg').innerHTML = "<span style='color:#00b894;'>✅ Awesome! You've matched the sentence correctly!</span>";
-                    listEl.style.borderColor = '#00b894';
-                    listEl.style.backgroundColor = '#e1fcf4';
-                }} else {{
-                    document.getElementById('msg').innerHTML = "<span style='color:#ff7675;'>❌ Not quite! Let's try rearranging them again!</span>";
-                    listEl.style.borderColor = '#ff7675';
-                }}
+        <script>
+            const words = {js_words};
+            const correctSentence = {js_correct};
+            const listEl = document.getElementById('sortable-list');
+
+            words.forEach(word => {{
+                let box = document.createElement('div');
+                box.className = 'word-box';
+                box.innerText = word;
+                listEl.appendChild(box);
+            }});
+            new Sortable(listEl, {{
+            animation: 150,
+            ghostClass: 'sortable-ghost'
+        }});
+
+        function checkOrder() {{
+            const currentOrder = Array.from(listEl.children).map(el => el.innerText).join(' ');
+            if (currentOrder === correctSentence) {{
+                document.getElementById('msg').innerHTML = "<span style='color:#00b894;'>✅ Awesome! You've matched the sentence correctly!</span>";
+                listEl.style.borderColor = '#00b894';
+                listEl.style.backgroundColor = '#e1fcf4';
+            }} else {{
+                document.getElementById('msg').innerHTML = "<span style='color:#ff7675;'>❌ Not quite! Let's try rearranging them again!</span>";
+                listEl.style.borderColor = '#ff7675';
             }}
-        </script>
-    </body>
-    </html>
-    """
-    
-    # Tự động nới rộng khung giao diện nếu có hình ảnh để không bị xuất hiện thanh cuộn (scroll)
-    frame_height = 600 if image_url and image_url.lower() not in ['nan', 'none', ''] else 350
-    import streamlit.components.v1 as components
-    components.html(html_code, height=frame_height)
+        }}
+    </script>
+</body>
+</html>
+"""
+
+# Tự động nới rộng khung giao diện nếu có hình ảnh để không bị xuất hiện thanh cuộn (scroll)
+frame_height = 600 if image_url and image_url.lower() not in ['nan', 'none', ''] else 350
+import streamlit.components.v1 as components
+components.html(html_code, height=frame_height)
