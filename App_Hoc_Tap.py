@@ -109,7 +109,10 @@ def set_responsive_background(image_path, current_role):
     st.markdown(f"""
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap');
-        
+
+        div.stButton > button {
+            color: white !important;
+        }
         .stApp {{
             {bg_css}
             background-size: cover;
@@ -400,18 +403,45 @@ elif st.session_state['role'] == 'student':
                                         else:
                                             st.session_state['all_questions'] = all_qs
                                             quick_qs = [q for q in all_qs if q['ex_type'] in ['Ex1', 'Ex2', 'Ex5', 'Ex6']]
-                                            boss_qs = [q for q in all_qs if q['ex_type'] == 'Ex4']
-                                            has_ex3 = any(q['ex_type'] == 'Ex3' for q in all_qs)
-                                            
-                                            num_quick = min(8, len(quick_qs))
-                                            selected_playlist = random.sample(quick_qs, num_quick)
-                                            if has_ex3: selected_playlist.append({'ex_type': 'Ex3'}) 
-                                            random.shuffle(selected_playlist)
-                                            if boss_qs: selected_playlist.append({'ex_type': 'Ex4'})
-                                            
-                                            st.session_state['playlist'] = selected_playlist
-                                            st.session_state['current_q'] = 0
-                                            st.rerun()
+                                            if not quick_qs:
+                                                st.warning("⚠️ Oop! Không có bài tập nào cho mục này. Bé Xu đang đi tìm thêm!")
+                                            else:
+                                                # --- BẮT ĐẦU LOGIC PHÂN LOẠI CÂU CHUYỆN VÀ CÂU LẺ ---
+                                                bundles = {}
+                                                standalones = []
+                                                for q in quick_qs:
+                                                    bid = q.get('bundle_id')
+                                                    if bid and str(bid).strip() and str(bid).strip().lower() not in ['nan', 'none', '']:
+                                                        if bid not in bundles: bundles[bid] = []
+                                                        bundles[bid].append(q)
+                                                    else:
+                                                        standalones.append(q)
+                                                        
+                                                selected_playlist = []
+                                                
+                                                if bundles:
+                                                    # TRƯỜNG HỢP 1: CÓ BỘ CÂU HỎI -> TỔNG 6 CÂU
+                                                    chosen_bid = random.choice(list(bundles.keys()))
+                                                    story_qs = sorted(bundles[chosen_bid], key=lambda x: x.get('id', 0)) 
+                                                    selected_playlist.extend(story_qs)
+                                                    
+                                                    slots_left = 6 - len(selected_playlist)
+                                                    if slots_left > 0 and standalones:
+                                                        fillers = random.sample(standalones, min(slots_left, len(standalones)))
+                                                        selected_playlist.extend(fillers)
+                                                else:
+                                                    # TRƯỜNG HỢP 2: KHÔNG CÓ BỘ (Toàn câu lẻ) -> TỔNG 5 CÂU
+                                                    if standalones:
+                                                        fillers = random.sample(standalones, min(5, len(standalones)))
+                                                        selected_playlist.extend(fillers)
+                                                        random.shuffle(selected_playlist)
+                                                # ---------------------------------------------------
+                                                
+                                                # Bắt đầu đưa vào playlist cho học sinh chơi
+                                                st.session_state['playlist'] = selected_playlist
+                                                st.session_state['current_q_index'] = 0
+                                                st.session_state['correct_count'] = 0
+                                                st.rerun()
                                     except Exception as e:
                                         st.error(f"⚠️ Error fetching missions: {e}")
 
