@@ -399,7 +399,7 @@ elif st.session_state['role'] == 'student':
                                             st.warning("📭 Oops! No missions found for this selection. Please try another!")
                                         else:
                                             st.session_state['all_questions'] = all_qs
-                                            quick_qs = [q for q in all_qs if q['ex_type'] in ['Ex1', 'Ex2']]
+                                            quick_qs = [q for q in all_qs if q['ex_type'] in ['Ex1', 'Ex2', 'Ex6']])
                                             boss_qs = [q for q in all_qs if q['ex_type'] == 'Ex4']
                                             has_ex3 = any(q['ex_type'] == 'Ex3' for q in all_qs)
                                             
@@ -440,6 +440,8 @@ elif st.session_state['role'] == 'student':
                         elif ex_type == 'Ex2': run_ex2_dynamic(current_q_data, curr_idx)
                         elif ex_type == 'Ex3': run_ex3_dynamic(st.session_state['all_questions'], curr_idx)
                         elif ex_type == 'Ex4': run_ex4_dynamic(st.session_state['all_questions'], curr_idx)
+                        elif ex_type == 'Ex5': run_ex5_dynamic(st.session_state['all_questions'], curr_idx)
+                        elif ex_type == 'Ex6': run_ex6_dynamic(current_q_data, curr_idx)
                         else: st.error("⚠️ System cannot recognize this mission type.")
                 
 # ================= 6. TEACHER PORTAL =================
@@ -493,7 +495,7 @@ elif st.session_state['role'] == 'teacher':
 
         with tab_bank:
             st.markdown("#### 🏦 Import Questions from Excel")
-            st.info("💡 **Instruction:** The uploaded Excel file must have headers: **Book, Unit, Topic, Type, Question, Answer, Options**")
+            st.info("💡 **Instruction:** The uploaded Excel file must have exact headers: Book, Unit, Topic, Level, Skill, Bundle, Type, Question, Answer, Options")
             
             uploaded_file = st.file_uploader("📥 Upload Excel file (.xlsx) here", type=["xlsx"])
             
