@@ -1,5 +1,6 @@
 # ==============================================================================
 # TỆP CHỨA CÁC MODULE BÀI TẬP JAVASCRIPT (CHẠY ĐỘC LẬP)
+# Giao diện 100% Tiếng Anh
 # ==============================================================================
 import streamlit as st
 import streamlit.components.v1 as components
@@ -436,7 +437,7 @@ def run_ex4_dynamic(all_qs, idx):
                 }} else {{ allCorrect = false; }}
             }});
             let msg = document.getElementById('message');
-            if(filledCount < Object.keys(picMapping).length) msg.innerHTML = "<span style='color:#fdcb6e;'>⚠️ Nu says: You haven't found all words yet!</span>";
+            if(filledCount < Object.keys(picMapping).length) msg.innerHTML = "<span style='color:#fdcb6e;'>⚠️ You haven't found all words yet!</span>";
             else if (!allCorrect) msg.innerHTML = "<span style='color:#ff7675;'>❌ Oops, some matches are incorrect. Try again!</span>";
             else msg.innerHTML = "<span style='color:#00b894;'>🎉 EXCELLENT! You found and matched everything perfectly! 🏆</span>";
         }}
@@ -444,7 +445,6 @@ def run_ex4_dynamic(all_qs, idx):
     </body>
     </html>
     """
-    import streamlit.components.v1 as components
     components.html(html_game_code, height=1050)
     
 @st.fragment
@@ -568,9 +568,8 @@ def run_ex5_dynamic(all_qs, idx):
     </body>
     </html>
     """
-import streamlit.components.v1 as components
-components.html(html_code, height=500)
-    
+    components.html(html_code, height=500)
+        
 @st.fragment
 def run_ex6_dynamic(q_data, idx):
     st.markdown("### 🚂 EXERCISE 6: SENTENCE TRAIN")
@@ -630,28 +629,28 @@ def run_ex6_dynamic(q_data, idx):
                 box.innerText = word;
                 listEl.appendChild(box);
             }});
+            
             new Sortable(listEl, {{
-            animation: 150,
-            ghostClass: 'sortable-ghost'
-        }});
+                animation: 150,
+                ghostClass: 'sortable-ghost'
+            }});
 
-        function checkOrder() {{
-            const currentOrder = Array.from(listEl.children).map(el => el.innerText).join(' ');
-            if (currentOrder === correctSentence) {{
-                document.getElementById('msg').innerHTML = "<span style='color:#00b894;'>✅ Awesome! You've matched the sentence correctly!</span>";
-                listEl.style.borderColor = '#00b894';
-                listEl.style.backgroundColor = '#e1fcf4';
-            }} else {{
-                document.getElementById('msg').innerHTML = "<span style='color:#ff7675;'>❌ Not quite! Let's try rearranging them again!</span>";
-                listEl.style.borderColor = '#ff7675';
+            function checkOrder() {{
+                const currentOrder = Array.from(listEl.children).map(el => el.innerText).join(' ');
+                if (currentOrder === correctSentence) {{
+                    document.getElementById('msg').innerHTML = "<span style='color:#00b894;'>✅ Awesome! You've matched the sentence correctly!</span>";
+                    listEl.style.borderColor = '#00b894';
+                    listEl.style.backgroundColor = '#e1fcf4';
+                }} else {{
+                    document.getElementById('msg').innerHTML = "<span style='color:#ff7675;'>❌ Not quite! Let's try rearranging them again!</span>";
+                    listEl.style.borderColor = '#ff7675';
+                }}
             }}
-        }}
-    </script>
-</body>
-</html>
-"""
-
-# Tự động nới rộng khung giao diện nếu có hình ảnh để không bị xuất hiện thanh cuộn (scroll)
-frame_height = 600 if image_url and image_url.lower() not in ['nan', 'none', ''] else 350
-import streamlit.components.v1 as components
-components.html(html_code, height=frame_height)
+        </script>
+    </body>
+    </html>
+    """
+    
+    # Tự động nới rộng khung giao diện nếu có hình ảnh
+    frame_height = 600 if image_url and image_url.lower() not in ['nan', 'none', ''] else 350
+    components.html(html_code, height=frame_height)
