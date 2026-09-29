@@ -399,7 +399,7 @@ elif st.session_state['role'] == 'student':
                                             st.warning("📭 Oops! No missions found for this selection. Please try another!")
                                         else:
                                             st.session_state['all_questions'] = all_qs
-                                            quick_qs = [q for q in all_qs if q['ex_type'] in ['Ex1', 'Ex2', 'Ex6']])
+                                            quick_qs = [q for q in all_qs if q['ex_type'] in ['Ex1', 'Ex2', 'Ex6']]
                                             boss_qs = [q for q in all_qs if q['ex_type'] == 'Ex4']
                                             has_ex3 = any(q['ex_type'] == 'Ex3' for q in all_qs)
                                             
