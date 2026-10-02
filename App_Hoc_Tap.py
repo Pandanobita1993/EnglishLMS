@@ -99,16 +99,35 @@ def set_responsive_background(image_path, current_role):
         bin_str = get_base64_of_bin_file(image_path)
         ext = image_path.split('.')[-1].lower()
         mime = "image/png" if ext == "png" else "image/jpeg"
-        bg_css = f'background-image: url("data:{mime};base64,{bin_str}");'
+        bg_css = f'background-image: url("data:{mime};base64,{bin_str}") !important;'
     except Exception as e: 
         st.error(f"⚠️ Background image not found: {e}")
-        bg_css = 'background-color: #f5f6fa;'
+        bg_css = 'background-color: #f5f6fa !important;'
     
     bg_opacity = "rgba(255, 255, 255, 0.05)" if current_role is None else "rgba(255, 255, 255, 0.45)"
 
     st.markdown(f"""
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap');
+
+        /* 1. Dán hình nền thẳng vào lớp đáy cùng của Streamlit */
+        .stApp {{
+            {bg_css}
+            background-size: cover !important;
+            background-position: center !important;
+            background-attachment: fixed !important;
+        }}
+        
+        /* 2. Biến các lớp che phủ bên trên thành kính trong suốt */
+        [data-testid="stAppViewContainer"], 
+        [data-testid="stHeader"] {{
+            background: transparent !important;
+        }}
+
+        /* Căn giữa và giới hạn độ rộng thông minh trên màn hình vi tính */
+        .block-container {{
+            max-width: 1200px !important;
+        }}
 
         /* Nút Primary (Bắt đầu, Nộp bài) - Màu gradient rực rỡ */
         div[data-testid="stButton"] button[kind="primary"] {{
@@ -125,7 +144,7 @@ def set_responsive_background(image_path, current_role):
             box-shadow: 0 8px 20px rgba(255,107,107,0.6) !important;
         }}
         
-        /* Nút Secondary (Next Mission) - Nền tối chữ vàng siêu ngầu & dễ đọc */
+        /* Nút Secondary (Next Mission) - Nền tối chữ vàng siêu ngầu */
         div[data-testid="stButton"] button[kind="secondary"] {{
             background: #2d3436 !important;
             color: #ffeaa7 !important;
@@ -140,9 +159,7 @@ def set_responsive_background(image_path, current_role):
             border-color: #f1c40f !important;
         }}
         
-        .block-container, 
-        [data-testid="stAppViewBlockContainer"], 
-        [data-testid="stMainBlockContainer"] {{
+        [data-testid="stAppViewBlockContainer"], [data-testid="stMainBlockContainer"] {{
             background: {bg_opacity} !important;
             backdrop-filter: blur(12px) !important;
             -webkit-backdrop-filter: blur(12px) !important;
@@ -150,7 +167,6 @@ def set_responsive_background(image_path, current_role):
             padding: 2rem !important;
             margin-top: 1rem;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            transition: background 0.3s ease-in-out;
         }}
 
         .block-container p, .block-container span, .block-container label, div[data-baseweb="select"] {{
@@ -170,7 +186,6 @@ def set_responsive_background(image_path, current_role):
         }}
         </style>
     """, unsafe_allow_html=True)
-
 set_responsive_background("Background_1.jpg", st.session_state['role'])
 
 st.markdown("<h1 style='text-align: center;'>🌟 CAMBRIDGE KIDS LMS 🌟</h1>", unsafe_allow_html=True)
