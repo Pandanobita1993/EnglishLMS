@@ -110,14 +110,34 @@ def set_responsive_background(image_path, current_role):
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap');
 
-        div.stButton > button {{
+        /* Nút Primary (Bắt đầu, Nộp bài) - Màu gradient rực rỡ */
+        div[data-testid="stButton"] button[kind="primary"] {{
+            background: linear-gradient(90deg, #ff6b6b, #feca57) !important;
             color: white !important;
+            border: none !important;
+            font-weight: 900 !important;
+            border-radius: 25px !important;
+            box-shadow: 0 5px 15px rgba(255,107,107,0.4) !important;
+            transition: all 0.2s ease-in-out;
         }}
-        .stApp {{
-            {bg_css}
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
+        div[data-testid="stButton"] button[kind="primary"]:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(255,107,107,0.6) !important;
+        }}
+        
+        /* Nút Secondary (Next Mission) - Nền tối chữ vàng siêu ngầu & dễ đọc */
+        div[data-testid="stButton"] button[kind="secondary"] {{
+            background: #2d3436 !important;
+            color: #ffeaa7 !important;
+            border: 2px solid #ffeaa7 !important;
+            font-weight: 900 !important;
+            border-radius: 25px !important;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2) !important;
+        }}
+        div[data-testid="stButton"] button[kind="secondary"]:hover {{
+            background: #1e272e !important;
+            color: #f1c40f !important;
+            border-color: #f1c40f !important;
         }}
         
         .block-container, 
@@ -541,49 +561,50 @@ elif st.session_state['role'] == 'teacher':
                     st.dataframe(df.head(5), use_container_width=True)
                     
                     if st.button("🚀 UPLOAD TO DATABASE", type="primary", use_container_width=True):
-                        with st.spinner("Uploading data to Supabase..."):
-                            import time # Dùng để đẻ ra mã bundle duy nhất dựa trên thời gian
-                            success_count = 0
-                            current_bundle_id = None # Biến theo dõi xem có đang ở trong 1 bộ hay không
+                        with st.spinner("Đang đẩy dữ liệu lên Supabase..."):
+                            import time
+                            current_bundle_id = None # Biến theo dõi bộ câu hỏi
+                            rows_to_insert = []
                             
-                            for index, row in df.iterrows():
-                                try:
-                                    # Lấy giá trị cột Bundle ở file Excel
+                            try:
+                                for index, row in df.iterrows():
+                                    # LOGIC TỰ ĐỘNG GOM BỘ (BUNDLE) THÔNG MINH CỦA BỒ
                                     bundle_val = str(row.get('Bundle', '')).strip().lower()
-                                    
-                                    # LOGIC TỰ ĐỘNG GOM BỘ (BUNDLE)
                                     if bundle_val in ['yes', 'y', 'có', 'co', '1']:
-                                        # Nếu trước đó chưa có ID (dòng đầu tiên của bộ truyện mới)
                                         if current_bundle_id is None:
-                                            # Tự đẻ ra 1 mã ID duy nhất trên đời (ghép chữ bundle + thời gian thực + số dòng)
+                                            # Tự sinh mã duy nhất khi bắt đầu một bộ mới
                                             current_bundle_id = f"bundle_{int(time.time())}_{index}"
                                         assigned_bundle_id = current_bundle_id
                                     else:
-                                        # Nếu ô trống -> Cắt đứt bộ truyện, trở về trạng thái câu hỏi lẻ
+                                        # Hết bộ thì reset lại
                                         current_bundle_id = None
                                         assigned_bundle_id = ""
 
-                                    data_insert = {
+                                    rows_to_insert.append({
                                         "book": str(row.get('Book', '')).strip(),
                                         "unit": str(row.get('Unit', '')).strip(),
                                         "topic": str(row.get('Topic', '')).strip(),
                                         "level": str(row.get('Level', '')).strip(), 
-                                        "skill": str(row.get('Skill', 'All')).strip(), 
-                                        "bundle_id": assigned_bundle_id, # Đã được tự động hóa hoàn toàn
+                                        "skill": str(row.get('Skill', 'All')).strip() or "All", 
+                                        "bundle_id": assigned_bundle_id,
                                         "ex_type": str(row.get('Type', '')).strip(),
                                         "question": str(row.get('Question', '')).strip(),
                                         "answer": str(row.get('Answer', '')).strip(),
                                         "options": str(row.get('Options', '')).strip() if pd.notna(row.get('Options')) else ""
-                                    }
-                                    supabase.table("questions").insert(data_insert).execute()
-                                    success_count += 1
-                                except Exception as err:
-                                    st.error(f"⚠️ Error at row {index + 2}: {err}")
-                            
-                            st.success(f"🎉 Excellent! Successfully uploaded {success_count} questions!")
-                            st.balloons()
-                except Exception as e:
-                    st.error(f"❌ Invalid Excel file. Error: {e}")
+                                    })
+                                
+                                # Đẩy lên Supabase theo lô (mỗi lần 200 câu) để chống nghẽn
+                                for i in range(0, len(rows_to_insert), 200):
+                                    supabase.table("questions").insert(rows_to_insert[i:i+200]).execute()
+                                
+                                # XÓA CACHE ĐỂ GIAO DIỆN HỌC SINH CẬP NHẬT NGAY LẬP TỨC
+                                get_questions.clear()
+                                get_curriculum_structure.clear()
+                                
+                                st.success(f"🎉 Xuất sắc! Đã tải lên thành công {len(rows_to_insert)} câu hỏi!")
+                                st.balloons()
+                            except Exception as err:
+                                st.error(f"⚠️ Lỗi hệ thống khi tải dữ liệu: {err}")
                     
             st.markdown("---")
             
