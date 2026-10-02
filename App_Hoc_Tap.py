@@ -605,6 +605,9 @@ elif st.session_state['role'] == 'teacher':
                                 st.balloons()
                             except Exception as err:
                                 st.error(f"⚠️ Lỗi hệ thống khi tải dữ liệu: {err}")
+                # Đây là dòng except bồ lỡ tay xóa làm báo lỗi nè
+                except Exception as e:
+                    st.error(f"❌ Invalid Excel file. Error: {e}")
                     
             st.markdown("---")
             
