@@ -259,8 +259,7 @@ if st.session_state['role'] is None:
 elif st.session_state['role'] == 'student':
     import random, string, json
     
-    # Kéo các hàm bài tập siêu mượt từ file hệ thống sang
-    from Exercise_Components import run_ex1_dynamic, run_ex2_dynamic, run_ex3_dynamic, run_ex4_dynamic, run_ex5_dynamic, run_ex6_dynamic, run_ex7_dynamic
+    from Exercise_Components import run_ex1_dynamic, run_ex2_dynamic, run_ex3_dynamic, run_ex4_dynamic, run_ex5_dynamic, run_ex6_dynamic, run_ex7_dynamic, run_ex8_dynamic
 
     # ---------------------------------------------------------------------
     # GIAO DIỆN ĐĂNG NHẬP & LUỒNG HỌC TẬP CHÍNH
@@ -460,16 +459,16 @@ elif st.session_state['role'] == 'student':
                                         else:
                                             st.session_state['all_questions'] = all_qs
                                             
-                                            # Bốc các dạng bài tập tương tác (Ex1 -> Ex7)
-                                            quick_qs = [q for q in all_qs if q['ex_type'] in ['Ex1', 'Ex2', 'Ex3', 'Ex4', 'Ex5', 'Ex6', 'Ex7']]
+                                            # Bốc các dạng bài tập tương tác (Ex1 -> Ex8)
+                                            quick_qs = [q for q in all_qs if q['ex_type'] in ['Ex1', 'Ex2', 'Ex3', 'Ex4', 'Ex5', 'Ex6', 'Ex7', 'Ex8']]
                                             
                                             if not quick_qs:
                                                 st.warning("⚠️ Oop! Không có bài tập nào cho mục này. Bé Xu đang đi tìm thêm!")
                                             else:
                                                 # --- BẮT ĐẦU LOGIC PHÂN LOẠI CÂU CHUYỆN VÀ CÂU LẺ ---
-                                                # Ex3/Ex4/Ex5/Ex7 render cả một BỘ câu hỏi từ all_questions,
+                                                # Ex3/Ex4/Ex5/Ex7/Ex8 render cả một BỘ câu hỏi từ all_questions,
                                                 # nên mỗi dạng chỉ cần đại diện bằng 1 mục trong playlist.
-                                                SET_TYPES = ['Ex3', 'Ex4', 'Ex5', 'Ex7']
+                                                SET_TYPES = ['Ex3', 'Ex4', 'Ex5', 'Ex7', 'Ex8']
                                                 set_reps = {}
                                                 bundles = {}
                                                 standalones = []
@@ -539,6 +538,7 @@ elif st.session_state['role'] == 'student':
                         elif ex_type == 'Ex5': run_ex5_dynamic(st.session_state['all_questions'], curr_idx)
                         elif ex_type == 'Ex6': run_ex6_dynamic(current_q_data, curr_idx)
                         elif ex_type == 'Ex7': run_ex7_dynamic(st.session_state['all_questions'], curr_idx)
+                        elif ex_type == 'Ex8': run_ex8_dynamic(st.session_state['all_questions'], curr_idx)
                         else: st.error("⚠️ System cannot recognize this mission type.")
                 
 # ================= 6. TEACHER PORTAL =================

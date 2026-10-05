@@ -823,3 +823,452 @@ def run_ex7_dynamic(all_qs, idx):
     """
     # Chiều cao tự co giãn theo số câu (mỗi hàng ~ 120px)
     components.html(html_code, height=180 + 125 * len(items), scrolling=True)
+
+
+@st.fragment
+def run_ex8_dynamic(all_qs, idx):
+    st.markdown("### 🗂️ EXERCISE 8: CATEGORY SORTING")
+    st.info("💡 **Mission:** Tap a word from the Word Bank, then tap the box where it belongs!")
+
+    ex8_qs = [q for q in all_qs if q.get('ex_type') == 'Ex8']
+    if not ex8_qs:
+        st.error("⚠️ Not enough data to create a Category Sorting exercise.")
+        return
+
+    cat_words = {}
+    for q in ex8_qs:
+        cat = str(q.get('question', '')).strip()
+        if not cat or cat.lower() in ['nan', 'none']:
+            cat = str(q.get('topic', '')).strip()
+        if not cat or cat.lower() in ['nan', 'none']:
+            cat = "General"
+
+        words = []
+        raw_opts = str(q.get('options', '')).strip()
+        if raw_opts and raw_opts.lower() not in ['nan', 'none']:
+            for w in raw_opts.split(','):
+                w_clean = w.strip()
+                if w_clean and w_clean.lower() not in ['nan', 'none']:
+                    words.append(w_clean)
+
+        ans = str(q.get('answer', '')).strip()
+        if ans and ans.lower() not in ['nan', 'none'] and ans not in words:
+            words.append(ans)
+
+        if cat not in cat_words:
+            cat_words[cat] = []
+        for w in words:
+            if w not in cat_words[cat]:
+                cat_words[cat].append(w)
+
+    cat_words = {c: ws for c, ws in cat_words.items() if len(ws) > 0}
+
+    if len(cat_words) < 2:
+        st.error("⚠️ Need at least 2 different categories with words to create a Category Sorting exercise.")
+        return
+
+    chosen_cats = list(cat_words.keys())
+    if len(chosen_cats) > 3:
+        chosen_cats = random.sample(chosen_cats, 3)
+
+    items = []
+    word_id = 0
+    for cat in chosen_cats:
+        words = cat_words[cat]
+        sample_count = min(len(words), 4)
+        picked = random.sample(words, sample_count)
+        for w in picked:
+            items.append({
+                "id": word_id,
+                "text": w,
+                "cat": cat
+            })
+            word_id += 1
+
+    random.shuffle(items)
+
+    js_cats = json.dumps(chosen_cats)
+    js_words = json.dumps(items)
+
+    html_code = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <meta charset="UTF-8">
+    <style>
+        body {{
+            font-family: 'Nunito', sans-serif;
+            text-align: center;
+            user-select: none;
+            background: transparent;
+            margin: 0;
+            padding: 10px;
+        }}
+        .bank-wrapper {{
+            background: rgba(255, 255, 255, 0.88);
+            border: 3px dashed #74b9ff;
+            border-radius: 16px;
+            padding: 12px 15px;
+            margin-bottom: 18px;
+            min-height: 60px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+        }}
+        .bank-title {{
+            font-size: 13px;
+            font-weight: 900;
+            color: #0984e3;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }}
+        .bank-pool {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            min-height: 44px;
+        }}
+        .pill {{
+            background: #ffffff;
+            color: #0984e3;
+            border: 2.5px solid #74b9ff;
+            border-radius: 22px;
+            padding: 8px 18px;
+            font-size: 17px;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #74b9ff;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }}
+        .pill:active {{
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 #74b9ff;
+        }}
+        .pill.selected {{
+            background: #ffeaa7 !important;
+            border-color: #fdcb6e !important;
+            color: #2d3436 !important;
+            box-shadow: 0 4px 0 #fdcb6e, 0 0 12px rgba(254, 202, 87, 0.6) !important;
+            transform: scale(1.08) translateY(-2px);
+        }}
+        .pill.correct {{
+            background: #55efc4 !important;
+            border-color: #00b894 !important;
+            color: #006248 !important;
+            box-shadow: 0 4px 0 #00b894 !important;
+            cursor: default;
+        }}
+        .pill.wrong {{
+            background: #ff7675 !important;
+            border-color: #d63031 !important;
+            color: white !important;
+            box-shadow: 0 4px 0 #d63031 !important;
+            animation: shake 0.4s ease;
+        }}
+        @keyframes shake {{
+            0%, 100% {{ transform: translateX(0); }}
+            25% {{ transform: translateX(-5px); }}
+            75% {{ transform: translateX(5px); }}
+        }}
+        .buckets-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }}
+        .bucket {{
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 16px;
+            border: 3px solid #dfe6e9;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: all 0.2s;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.05);
+            min-height: 190px;
+        }}
+        .bucket.target-hover {{
+            border-color: #feca57 !important;
+            transform: scale(1.02);
+            box-shadow: 0 8px 20px rgba(254, 202, 87, 0.4);
+        }}
+        .bucket-0 {{ border-color: #81ecec; }}
+        .bucket-0 .bucket-header {{ background: linear-gradient(135deg, #00cec9, #81ecec); color: #005a58; }}
+        .bucket-1 {{ border-color: #fab1a0; }}
+        .bucket-1 .bucket-header {{ background: linear-gradient(135deg, #ff7675, #fab1a0); color: #6d1b1a; }}
+        .bucket-2 {{ border-color: #a29bfe; }}
+        .bucket-2 .bucket-header {{ background: linear-gradient(135deg, #6c5ce7, #a29bfe); color: #2c216b; }}
+        .bucket-header {{
+            padding: 10px 12px;
+            font-size: 17px;
+            font-weight: 900;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            border-bottom: 2px solid rgba(0,0,0,0.06);
+        }}
+        .bucket-content {{
+            padding: 12px;
+            flex-grow: 1;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-content: flex-start;
+            justify-content: center;
+            min-height: 120px;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.5);
+        }}
+        .bucket-empty-hint {{
+            color: #b2bec3;
+            font-size: 14px;
+            font-weight: 700;
+            margin: auto;
+            pointer-events: none;
+            padding: 15px 5px;
+            border: 2px dashed #dfe6e9;
+            border-radius: 10px;
+            width: 85%;
+        }}
+        .controls {{
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            align-items: center;
+            margin-top: 5px;
+        }}
+        .btn-submit {{
+            padding: 12px 35px;
+            background: linear-gradient(90deg, #ff6b6b, #feca57);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 18px;
+            font-weight: 900;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(255,107,107,0.4);
+            transition: transform 0.1s;
+        }}
+        .btn-submit:active {{ transform: translateY(3px); }}
+        .btn-reset {{
+            padding: 12px 20px;
+            background: #dfe6e9;
+            color: #2d3436;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 3px 0 #b2bec3;
+        }}
+        .btn-reset:active {{ transform: translateY(3px); box-shadow: none; }}
+        #msg {{
+            margin-top: 15px;
+            font-size: 18px;
+            font-weight: 900;
+            min-height: 32px;
+        }}
+    </style>
+    </head>
+    <body>
+        <div class="bank-wrapper" id="bank-wrap">
+            <div class="bank-title">📦 Word Bank</div>
+            <div class="bank-pool" id="word-bank"></div>
+        </div>
+
+        <div class="buckets-grid" id="buckets-grid"></div>
+
+        <div class="controls">
+            <button class="btn-submit" id="btn-check" onclick="checkAnswers()">🚀 CHECK ANSWERS</button>
+            <button class="btn-reset" onclick="resetAll()">↻ RESET</button>
+        </div>
+        <div id="msg"></div>
+
+        <script>
+            const categories = {js_cats};
+            const initialWords = {js_words};
+            
+            let placements = {{}};
+            let selectedWordId = null;
+            let checked = false;
+            let verifiedResults = {{}};
+
+            function init() {{
+                initialWords.forEach(w => {{
+                    placements[w.id] = null;
+                }});
+                render();
+            }}
+
+            function setMsg(color, text) {{
+                const m = document.getElementById('msg');
+                m.innerText = text;
+                m.style.color = color;
+            }}
+
+            function render() {{
+                const bankEl = document.getElementById('word-bank');
+                bankEl.innerHTML = '';
+                const unplacedWords = initialWords.filter(w => placements[w.id] === null);
+
+                if (unplacedWords.length === 0) {{
+                    bankEl.innerHTML = '<span style="color:#00b894; font-weight:800; font-size:15px;">🎉 All words placed into boxes!</span>';
+                }} else {{
+                    unplacedWords.forEach(w => {{
+                        const pill = createPillElement(w);
+                        bankEl.appendChild(pill);
+                    }});
+                }}
+
+                const gridEl = document.getElementById('buckets-grid');
+                gridEl.innerHTML = '';
+
+                categories.forEach((cat, idx) => {{
+                    const bucket = document.createElement('div');
+                    bucket.className = `bucket bucket-${{idx % 3}}`;
+                    if (selectedWordId !== null) {{
+                        bucket.classList.add('target-hover');
+                    }}
+
+                    const header = document.createElement('div');
+                    header.className = 'bucket-header';
+                    header.innerText = cat;
+                    bucket.appendChild(header);
+
+                    const content = document.createElement('div');
+                    content.className = 'bucket-content';
+                    content.onclick = () => onBucketClicked(cat);
+
+                    content.ondragover = (e) => {{ e.preventDefault(); }};
+                    content.ondrop = (e) => {{
+                        e.preventDefault();
+                        const wid = parseInt(e.dataTransfer.getData('text/plain'));
+                        if (!isNaN(wid)) placeWord(wid, cat);
+                    }};
+
+                    const bucketWords = initialWords.filter(w => placements[w.id] === cat);
+                    if (bucketWords.length === 0) {{
+                        const hint = document.createElement('div');
+                        hint.className = 'bucket-empty-hint';
+                        hint.innerText = 'Tap here to put word';
+                        content.appendChild(hint);
+                    }} else {{
+                        bucketWords.forEach(w => {{
+                            const pill = createPillElement(w, true);
+                            content.appendChild(pill);
+                        }});
+                    }}
+
+                    bucket.appendChild(content);
+                    gridEl.appendChild(bucket);
+                }});
+            }}
+
+            function createPillElement(w, isInBucket = false) {{
+                const pill = document.createElement('div');
+                let cls = 'pill';
+                if (selectedWordId === w.id) cls += ' selected';
+                
+                if (checked && isInBucket) {{
+                    if (verifiedResults[w.id] === true) cls += ' correct';
+                    else if (verifiedResults[w.id] === false) cls += ' wrong';
+                }}
+
+                pill.className = cls;
+                pill.innerText = w.text;
+                pill.draggable = !checked || verifiedResults[w.id] === false;
+
+                pill.ondragstart = (e) => {{
+                    e.dataTransfer.setData('text/plain', w.id);
+                }};
+
+                pill.onclick = (e) => {{
+                    e.stopPropagation();
+                    if (isInBucket) {{
+                        if (!checked || verifiedResults[w.id] === false) {{
+                            returnWordToBank(w.id);
+                        }}
+                    }} else {{
+                        if (checked) {{
+                            checked = false;
+                            verifiedResults = {{}};
+                            setMsg('', '');
+                        }}
+                        selectedWordId = (selectedWordId === w.id) ? null : w.id;
+                        render();
+                    }}
+                }};
+
+                return pill;
+            }}
+
+            function onBucketClicked(cat) {{
+                if (selectedWordId !== null) {{
+                    placeWord(selectedWordId, cat);
+                }}
+            }}
+
+            function placeWord(wordId, targetCat) {{
+                placements[wordId] = targetCat;
+                selectedWordId = null;
+                if (checked) {{
+                    checked = false;
+                    verifiedResults = {{}};
+                    setMsg('', '');
+                }}
+                render();
+            }}
+
+            function returnWordToBank(wordId) {{
+                placements[wordId] = null;
+                if (selectedWordId === wordId) selectedWordId = null;
+                if (checked) {{
+                    delete verifiedResults[wordId];
+                }}
+                render();
+            }}
+
+            function resetAll() {{
+                selectedWordId = null;
+                checked = false;
+                verifiedResults = {{}};
+                setMsg('', '');
+                init();
+            }}
+
+            function checkAnswers() {{
+                const unplaced = initialWords.filter(w => placements[w.id] === null);
+                if (unplaced.length > 0) {{
+                    setMsg('#e17055', '⚠️ Please place all words into the category boxes first!');
+                    return;
+                }}
+
+                checked = true;
+                verifiedResults = {{}};
+                let correctCount = 0;
+
+                initialWords.forEach(w => {{
+                    const isCorrect = (placements[w.id] === w.cat);
+                    verifiedResults[w.id] = isCorrect;
+                    if (isCorrect) correctCount++;
+                }});
+
+                render();
+
+                if (correctCount === initialWords.length) {{
+                    setMsg('#00b894', '🎉 HOORAY! You sorted all ' + correctCount + ' words correctly! 🏆');
+                    document.getElementById('btn-check').style.display = 'none';
+                }} else {{
+                    setMsg('#ff7675', '⭐ ' + correctCount + '/' + initialWords.length + ' correct! Tap on the red words (❌) to return them to the Word Bank!');
+                }}
+            }}
+
+            init();
+        </script>
+    </body>
+    </html>
+    """
+    components.html(html_code, height=620, scrolling=True)
