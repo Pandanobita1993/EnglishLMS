@@ -7,6 +7,7 @@ import streamlit.components.v1 as components
 import random
 import string
 import json
+import html
 
 @st.fragment
 def run_ex1_dynamic(q_data, idx):
@@ -162,7 +163,8 @@ def run_ex2_dynamic(q_data, idx):
 
             function render() {{
                 let displayWord = selectedOpt ? selectedOpt : "";
-                let htmlQ = qText.replace('___________', `<span class="blank ${{selectedOpt ? 'filled' : ''}}">${{displayWord}}</span>`);
+                const blankHtml = `<span class="blank ${{selectedOpt ? 'filled' : ''}}">${{displayWord}}</span>`;
+                let htmlQ = /_{{2,}}/.test(qText) ? qText.replace(/_{{2,}}/, blankHtml) : (qText + ' ' + blankHtml);
                 document.getElementById('q-box').innerHTML = htmlQ;
                 
                 const optsEl = document.getElementById('opts-container');
@@ -297,7 +299,10 @@ def run_ex3_dynamic(all_qs, idx):
 def run_ex4_dynamic(all_qs, idx):
     st.markdown("### 🕵️‍♀️ EXERCISE 4: THE BIG BOSS WORD SEARCH")
     st.info("Swipe through the letters in the grid to find the hidden words. Drag and drop them into the correct pictures!")
-    ex4_qs = [q for q in all_qs if q['ex_type'] == 'Ex4']
+    ex4_qs = [q for q in all_qs if q['ex_type'] == 'Ex4' and len(str(q['answer']).replace(" ", "")) <= 12]
+    if not ex4_qs:
+        st.error("⚠️ Not enough data to create a word search exercise.")
+        return
     if len(ex4_qs) > 8: ex4_qs = random.sample(ex4_qs, 8)
     target_words = [q['answer'].upper().replace(" ", "") for q in ex4_qs]
     pic_mapping = {q['question']: q['answer'].upper().replace(" ", "") for q in ex4_qs}
@@ -586,14 +591,14 @@ def run_ex6_dynamic(q_data, idx):
     
     # 2. Xáo trộn từ vựng
     shuffled_words = words.copy()
-    while shuffled_words == words and len(words) > 1:
+    while shuffled_words == words and len(set(words)) > 1:
         random.shuffle(shuffled_words)
         
     js_correct = json.dumps(correct_sentence)
     js_words = json.dumps(shuffled_words)
     
     # 3. Chèn khối hình ảnh nếu có link trong cột Options
-    img_html = f'<img src="{image_url}" class="hint-img">' if image_url and image_url.lower() not in ['nan', 'none', ''] else ''
+    img_html = f'<img src="{html.escape(image_url, quote=True)}" class="hint-img">' if image_url and image_url.lower() not in ['nan', 'none', ''] else ''
     
     html_code = f"""
     <!DOCTYPE html>
@@ -672,5 +677,4 @@ def run_ex6_dynamic(q_data, idx):
     
     # Tự động nới rộng khung giao diện, bật scroll chống lấp nút
     frame_height = 750 if image_url and image_url.lower() not in ['nan', 'none', ''] else 450
-    import streamlit.components.v1 as components
     components.html(html_code, height=frame_height, scrolling=True)

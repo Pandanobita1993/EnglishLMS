@@ -17,7 +17,9 @@ import os
 import random
 import io
 import requests
-import supabase
+import hashlib
+import hmac
+import secrets as pysecrets
 from supabase import create_client, Client
 
 # Khởi tạo kết nối (Cache_resource giúp kết nối chạy 1 lần duy nhất)
@@ -28,6 +30,26 @@ def init_connection():
     return create_client(url, key)
 
 supabase = init_connection()
+
+# -----------------------------------------------------------------------------
+# 🔐 BĂM MẬT KHẨU (PBKDF2-SHA256, định dạng: pbkdf2$<salt_hex>$<hash_hex>)
+# -----------------------------------------------------------------------------
+def hash_password(password: str) -> str:
+    salt = pysecrets.token_hex(16)
+    dk = hashlib.pbkdf2_hmac('sha256', password.encode(), bytes.fromhex(salt), 200_000)
+    return f"pbkdf2${salt}${dk.hex()}"
+
+def verify_password(password: str, stored) -> bool:
+    stored = str(stored or "")
+    if stored.startswith("pbkdf2$"):
+        try:
+            _, salt, hash_hex = stored.split("$")
+            dk = hashlib.pbkdf2_hmac('sha256', password.encode(), bytes.fromhex(salt), 200_000)
+            return hmac.compare_digest(dk.hex(), hash_hex)
+        except Exception:
+            return False
+    # Tương thích mật khẩu cũ lưu dạng plaintext
+    return bool(stored) and hmac.compare_digest(password.encode(), stored.encode())
 
 # -----------------------------------------------------------------------------
 # 🔥 HỆ THỐNG TỐI ƯU TỐC ĐỘ (CACHE) - TRÁNH LAG KHI RERUN 🔥
@@ -438,13 +460,17 @@ elif st.session_state['role'] == 'student':
                                         else:
                                             st.session_state['all_questions'] = all_qs
                                             
-                                            # Bốc các dạng bài tập tương tác (Ex1, 2, 5, 6)
-                                            quick_qs = [q for q in all_qs if q['ex_type'] in ['Ex1', 'Ex2', 'Ex5', 'Ex6']]
+                                            # Bốc các dạng bài tập tương tác (Ex1 -> Ex6)
+                                            quick_qs = [q for q in all_qs if q['ex_type'] in ['Ex1', 'Ex2', 'Ex3', 'Ex4', 'Ex5', 'Ex6']]
                                             
                                             if not quick_qs:
                                                 st.warning("⚠️ Oop! Không có bài tập nào cho mục này. Bé Xu đang đi tìm thêm!")
                                             else:
                                                 # --- BẮT ĐẦU LOGIC PHÂN LOẠI CÂU CHUYỆN VÀ CÂU LẺ ---
+                                                # Ex3/Ex4/Ex5 render cả một BỘ câu hỏi từ all_questions,
+                                                # nên mỗi dạng chỉ cần đại diện bằng 1 mục trong playlist.
+                                                SET_TYPES = ['Ex3', 'Ex4', 'Ex5']
+                                                set_reps = {}
                                                 bundles = {}
                                                 standalones = []
                                                 for q in quick_qs:
@@ -452,8 +478,11 @@ elif st.session_state['role'] == 'student':
                                                     if bid and str(bid).strip() and str(bid).strip().lower() not in ['nan', 'none', '']:
                                                         if bid not in bundles: bundles[bid] = []
                                                         bundles[bid].append(q)
+                                                    elif q['ex_type'] in SET_TYPES:
+                                                        set_reps.setdefault(q['ex_type'], q)
                                                     else:
                                                         standalones.append(q)
+                                                standalones.extend(set_reps.values())
                                                         
                                                 selected_playlist = []
                                                 
@@ -518,11 +547,18 @@ elif st.session_state['role'] == 'teacher':
         u_tch = st.text_input("Username:")
         p_tch = st.text_input("Password:", type="password")
         if st.button("🔓 Login", type="primary"):
-            res = supabase.table("teachers").select("*").eq("username", u_tch).eq("password", p_tch).execute()
-            if res.data:
+            res = supabase.table("teachers").select("*").eq("username", u_tch).execute()
+            teacher = res.data[0] if res.data else None
+            if teacher and verify_password(p_tch, teacher.get('password')):
+                # Tự động nâng cấp mật khẩu cũ (plaintext) sang dạng băm
+                if not str(teacher.get('password', '')).startswith("pbkdf2$"):
+                    try:
+                        supabase.table("teachers").update({"password": hash_password(p_tch)}).eq("username", teacher['username']).execute()
+                    except Exception as e:
+                        print(f"Không nâng cấp được mật khẩu: {e}")
                 st.session_state['is_teacher_logged_in'] = True
-                st.session_state['current_teacher'] = res.data[0]['full_name']
-                st.session_state['current_teacher_username'] = res.data[0]['username']
+                st.session_state['current_teacher'] = teacher['full_name']
+                st.session_state['current_teacher_username'] = teacher['username']
                 st.rerun()
             else:
                 st.error("❌ Invalid username or password. Please contact Admin.")
@@ -554,11 +590,22 @@ elif st.session_state['role'] == 'teacher':
                 if not units:
                     st.error("⚠️ Please select at least one Unit!")
                 else:
+                    deadline = datetime.datetime.now() + datetime.timedelta(hours=thoi_gian)
                     st.session_state['active_session'] = {
                         'book': sach, 'units': units, 'skill': ky_nang, 
-                        'deadline': datetime.datetime.now() + datetime.timedelta(hours=thoi_gian)
+                        'deadline': deadline
                     }
-                    st.success(f"Successfully published assignment for {sach} ({', '.join(units)})!")
+                    try:
+                        supabase.table("assignments").insert({
+                            "teacher_username": st.session_state['current_teacher_username'],
+                            "book": sach,
+                            "units": units,
+                            "skill": ky_nang,
+                            "deadline": deadline.isoformat()
+                        }).execute()
+                        st.success(f"Successfully published assignment for {sach} ({', '.join(units)})!")
+                    except Exception as e:
+                        st.error(f"❌ Could not save the assignment to the database (does the 'assignments' table exist?): {e}")
 
         with tab_bank:
             st.markdown("#### 🏦 Import Questions from Excel")
@@ -724,7 +771,11 @@ elif st.session_state['role'] == 'admin':
         u_admin = st.text_input("Admin ID:")
         p_admin = st.text_input("Password:", type="password")
         if st.button("🔓 Login", type="primary"):
-            if u_admin == "admin" and p_admin == "123456": 
+            admin_user_cfg = st.secrets.get("ADMIN_USER")
+            admin_pass_cfg = st.secrets.get("ADMIN_PASSWORD")
+            if not admin_user_cfg or not admin_pass_cfg:
+                st.error("⚠️ Admin account is not configured. Please set ADMIN_USER and ADMIN_PASSWORD in st.secrets.")
+            elif hmac.compare_digest(u_admin.encode(), str(admin_user_cfg).encode()) and hmac.compare_digest(p_admin.encode(), str(admin_pass_cfg).encode()):
                 st.session_state['is_admin_logged_in'] = True
                 st.rerun()
             else:
@@ -749,7 +800,7 @@ elif st.session_state['role'] == 'admin':
                 if st.form_submit_button("➕ CREATE ACCOUNT", type="primary"):
                     if t_user and t_pass:
                         try:
-                            supabase.table("teachers").insert({"username": t_user, "password": t_pass, "full_name": t_name}).execute()
+                            supabase.table("teachers").insert({"username": t_user, "password": hash_password(t_pass), "full_name": t_name}).execute()
                             st.success(f"✅ Account '{t_user}' created for {t_name}!")
                         except Exception as e:
                             st.error(f"❌ Error (Username may already exist): {e}")
