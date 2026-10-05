@@ -598,7 +598,7 @@ def run_ex6_dynamic(q_data, idx):
     js_words = json.dumps(shuffled_words)
     
     # 3. Chèn khối hình ảnh nếu có link trong cột Options
-    img_html = f'<img src="{html.escape(image_url, quote=True)}" class="hint-img">' if image_url and image_url.lower() not in ['nan', 'none', ''] else ''
+    img_html = f'<div class="img-wrap"><img src="{html.escape(image_url, quote=True)}" class="hint-img"></div>' if image_url and image_url.lower() not in ['nan', 'none', ''] else ''
     
     html_code = f"""
     <!DOCTYPE html>
@@ -607,7 +607,8 @@ def run_ex6_dynamic(q_data, idx):
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <style>
         body {{ font-family: 'Nunito', sans-serif; text-align: center; background: transparent; padding: 10px; margin: 0; user-select: none; }}
-        .hint-img {{ max-width: 100%; max-height: 250px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border: 3px solid #dfe6e9; object-fit: contain; background: white; }}
+        .img-wrap {{ display: flex; justify-content: center; align-items: center; width: 100%; margin-bottom: 15px; }}
+        .hint-img {{ display: block; margin: 0 auto; max-width: 100%; max-height: 250px; width: auto; height: auto; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border: 3px solid #dfe6e9; object-fit: contain; background: white; }}
         
         /* Bọc nền trắng cho chữ hướng dẫn để luôn đọc được trên mọi phông nền */
         .instruction-text {{ 
