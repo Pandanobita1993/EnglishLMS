@@ -679,3 +679,147 @@ def run_ex6_dynamic(q_data, idx):
     # Tự động nới rộng khung giao diện, bật scroll chống lấp nút
     frame_height = 750 if image_url and image_url.lower() not in ['nan', 'none', ''] else 450
     components.html(html_code, height=frame_height, scrolling=True)
+
+@st.fragment
+def run_ex7_dynamic(all_qs, idx):
+    st.markdown("### 🔍 EXERCISE 7: ODD ONE OUT")
+    st.info("💡 **Mission:** In each row, tap the word that is different, then press CHECK!")
+
+    ex7_qs = [q for q in all_qs if q['ex_type'] == 'Ex7']
+
+    # Mỗi câu cần có đáp án và tối thiểu 2 lựa chọn (cột Options, ngăn cách bằng dấu phẩy)
+    items = []
+    for q in ex7_qs:
+        correct_ans = str(q.get('answer', '')).strip()
+        raw_opts = str(q.get('options', '')).split(',')
+        opts = [o.strip() for o in raw_opts if o.strip() and o.strip().lower() not in ['nan', 'none']]
+        if correct_ans and correct_ans not in opts: opts.append(correct_ans)
+        if not correct_ans or len(opts) < 2: continue
+        random.shuffle(opts)
+        prompt_text = str(q.get('question', '')).strip()
+        if prompt_text.lower() in ['nan', 'none']: prompt_text = ''
+        items.append({'prompt': prompt_text, 'answer': correct_ans, 'options': opts})
+
+    if not items:
+        st.error("⚠️ Not enough data to create an odd-one-out exercise.")
+        return
+
+    # Mỗi lượt hiện khoảng 6 câu (xáo ngẫu nhiên từ các câu đang có trong nhiệm vụ)
+    if len(items) > 6: items = random.sample(items, 6)
+
+    js_items = json.dumps(items)
+
+    html_code = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <meta charset="UTF-8">
+    <style>
+        body {{ font-family: 'Nunito', sans-serif; text-align: center; user-select: none; background: transparent; margin: 0; padding: 10px; }}
+        .row {{ background: rgba(255,255,255,0.75); border: 3px solid #dfe6e9; border-radius: 15px; padding: 12px 10px 14px 10px; margin: 0 auto 14px auto; max-width: 620px; transition: border-color 0.2s, background 0.2s; }}
+        .row.row-correct {{ border-color: #00b894; background: #e1fcf4; }}
+        .row.row-wrong {{ border-color: #ff7675; }}
+        .row-title {{ font-size: 15px; font-weight: 900; color: #6c5ce7; margin-bottom: 10px; }}
+        .row-title .num {{ display: inline-block; background: #6c5ce7; color: white; border-radius: 50%; width: 24px; height: 24px; line-height: 24px; margin-right: 6px; }}
+        .cards {{ display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }}
+        .card {{ flex: 1 1 110px; max-width: 150px; padding: 14px 8px; font-size: 19px; font-weight: 900; border-radius: 12px; border: 3px solid #74b9ff; background: white; color: #0984e3; cursor: pointer; box-shadow: 0 4px 0 #74b9ff; transition: all 0.15s; word-break: break-word; box-sizing: border-box; }}
+        .card:active {{ transform: translateY(4px); box-shadow: 0 0 0 #74b9ff; }}
+        .card.selected {{ background: #ffeaa7; border-color: #fdcb6e; color: #2d3436; box-shadow: 0 4px 0 #fdcb6e; transform: scale(1.04); }}
+        .card.wrong {{ background: #ffeaea; border-color: #ff7675; color: #d63031; box-shadow: 0 4px 0 #ff7675; }}
+        .card.correct {{ background: #55efc4; border-color: #00b894; color: white; box-shadow: 0 4px 0 #00b894; }}
+        .card.locked {{ cursor: default; }}
+        .btn-check {{ margin-top: 10px; padding: 12px 35px; background: linear-gradient(90deg, #ff6b6b, #feca57); color: white; border: none; border-radius: 25px; font-size: 18px; font-weight: bold; cursor: pointer; box-shadow: 0 5px 15px rgba(255,107,107,0.4); }}
+        #msg {{ margin: 15px 0 5px 0; font-size: 18px; font-weight: bold; min-height: 28px; }}
+    </style>
+    </head>
+    <body>
+        <div id="rows"></div>
+        <button class="btn-check" id="btn" onclick="checkAll()">🚀 CHECK MY ANSWERS</button>
+        <div id="msg"></div>
+
+        <script>
+            const items = {js_items};
+            // state[i]: selected = từ đang chọn, done = đã đúng (khóa), wrongSet = các từ đã chọn sai
+            const state = items.map(() => ({{ selected: null, done: false, wrongSet: [] }}));
+
+            function setMsg(color, text) {{
+                const m = document.getElementById('msg');
+                m.innerText = text;
+                m.style.color = color;
+            }}
+
+            function render() {{
+                const container = document.getElementById('rows');
+                container.innerHTML = '';
+                items.forEach((it, i) => {{
+                    const st = state[i];
+                    const row = document.createElement('div');
+                    row.className = 'row' + (st.done ? ' row-correct' : '');
+
+                    const title = document.createElement('div');
+                    title.className = 'row-title';
+                    const num = document.createElement('span');
+                    num.className = 'num';
+                    num.innerText = i + 1;
+                    title.appendChild(num);
+                    title.appendChild(document.createTextNode(it.prompt || 'Which one is different?'));
+                    row.appendChild(title);
+
+                    const cards = document.createElement('div');
+                    cards.className = 'cards';
+                    it.options.forEach(opt => {{
+                        const card = document.createElement('div');
+                        let cls = 'card';
+                        if (st.done) {{
+                            cls += ' locked' + (opt === it.answer ? ' correct' : '');
+                        }} else {{
+                            if (st.selected === opt) cls += ' selected';
+                            else if (st.wrongSet.includes(opt)) cls += ' wrong';
+                        }}
+                        card.className = cls;
+                        card.innerText = opt;
+                        card.onclick = () => {{
+                            if (st.done) return;
+                            st.selected = opt;
+                            setMsg('', '');
+                            render();
+                        }};
+                        cards.appendChild(card);
+                    }});
+                    row.appendChild(cards);
+                    container.appendChild(row);
+                }});
+            }}
+
+            function checkAll() {{
+                const unanswered = state.filter(s => !s.done && !s.selected).length;
+                if (unanswered > 0) {{
+                    setMsg('#e17055', '⚠️ Please choose a word in every row first!');
+                    return;
+                }}
+                state.forEach((s, i) => {{
+                    if (s.done) return;
+                    if (s.selected === items[i].answer) {{
+                        s.done = true;
+                    }} else {{
+                        s.wrongSet.push(s.selected);
+                    }}
+                    s.selected = null;
+                }});
+                render();
+
+                const correctCount = state.filter(s => s.done).length;
+                if (correctCount === items.length) {{
+                    document.getElementById('btn').style.display = 'none';
+                    setMsg('#00b894', '🏆 Perfect! ' + correctCount + '/' + items.length + ' — You found every odd one out!');
+                }} else {{
+                    setMsg('#ff7675', '⭐ ' + correctCount + '/' + items.length + ' correct. Fix the rows without a green frame and try again!');
+                }}
+            }}
+            render();
+        </script>
+    </body>
+    </html>
+    """
+    # Chiều cao tự co giãn theo số câu (mỗi hàng ~ 120px)
+    components.html(html_code, height=180 + 125 * len(items), scrolling=True)
