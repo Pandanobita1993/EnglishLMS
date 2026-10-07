@@ -704,8 +704,8 @@ def run_ex7_dynamic(all_qs, idx):
         st.error("⚠️ Not enough data to create an odd-one-out exercise.")
         return
 
-    # Mỗi lượt hiện khoảng 6 câu (xáo ngẫu nhiên từ các câu đang có trong nhiệm vụ)
-    if len(items) > 6: items = random.sample(items, 6)
+    # Mỗi lượt hiện tối đa 20 câu (xáo ngẫu nhiên từ các câu đang có trong nhiệm vụ)
+    if len(items) > 20: items = random.sample(items, 20)
 
     js_items = json.dumps(items)
 

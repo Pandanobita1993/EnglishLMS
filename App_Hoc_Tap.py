@@ -484,21 +484,22 @@ elif st.session_state['role'] == 'student':
                                                 standalones.extend(set_reps.values())
                                                         
                                                 selected_playlist = []
+                                                TOTAL_MISSION_QUESTIONS = 20
                                                 
                                                 if bundles:
-                                                    # TRƯỜNG HỢP 1: CÓ BỘ CÂU HỎI -> TỔNG 6 CÂU
+                                                    # TRƯỜNG HỢP 1: CÓ BỘ CÂU HỎI -> TỔNG 20 CÂU
                                                     chosen_bid = random.choice(list(bundles.keys()))
                                                     story_qs = sorted(bundles[chosen_bid], key=lambda x: x.get('id', 0)) 
                                                     selected_playlist.extend(story_qs)
                                                     
-                                                    slots_left = 6 - len(selected_playlist)
+                                                    slots_left = TOTAL_MISSION_QUESTIONS - len(selected_playlist)
                                                     if slots_left > 0 and standalones:
                                                         fillers = random.sample(standalones, min(slots_left, len(standalones)))
                                                         selected_playlist.extend(fillers)
                                                 else:
-                                                    # TRƯỜNG HỢP 2: KHÔNG CÓ BỘ (Toàn câu lẻ) -> TỔNG 5 CÂU
+                                                    # TRƯỜNG HỢP 2: KHÔNG CÓ BỘ (Toàn câu lẻ) -> TỔNG 20 CÂU
                                                     if standalones:
-                                                        fillers = random.sample(standalones, min(5, len(standalones)))
+                                                        fillers = random.sample(standalones, min(TOTAL_MISSION_QUESTIONS, len(standalones)))
                                                         selected_playlist.extend(fillers)
                                                         random.shuffle(selected_playlist)
                                                 # ---------------------------------------------------
