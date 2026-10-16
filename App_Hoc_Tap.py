@@ -56,11 +56,19 @@ def verify_password(password: str, stored) -> bool:
 # -----------------------------------------------------------------------------
 @st.cache_data(ttl=300)
 def get_class_info(class_code):
-    return supabase.table("classes").select("*").eq("class_code", class_code).execute().data
+    try:
+        return supabase.table("classes").select("*").eq("class_code", class_code).execute().data
+    except Exception as e:
+        print(f"Lỗi đọc thông tin lớp: {e}")
+        return None
 
 @st.cache_data(ttl=300)
 def get_students_in_class(class_code):
-    return supabase.table("students").select("*").eq("class_code", class_code).execute().data
+    try:
+        return supabase.table("students").select("*").eq("class_code", class_code).execute().data
+    except Exception as e:
+        print(f"Lỗi đọc học sinh trong lớp: {e}")
+        return []
 
 @st.cache_data(ttl=300)
 def get_curriculum_structure():
@@ -76,20 +84,18 @@ def get_curriculum_structure():
 
 @st.cache_data(ttl=300)
 def get_questions(mode, skill, book=None, unit=None, level=None, topic=None):
-    # Bộ lọc thông minh tự động uốn nắn theo lựa chọn của học viên
-    query = supabase.table("questions").select("*")
-    
-    # Lọc Kỹ năng (Nếu khác "All")
-    if skill != "All":
-        query = query.eq("skill", skill)
-        
-    # Lọc theo Lộ trình
-    if mode == "book":
-        query = query.eq("book", book).eq("unit", unit)
-    elif mode == "topic":
-        query = query.eq("level", level).eq("topic", topic)
-        
-    return query.execute().data
+    try:
+        query = supabase.table("questions").select("*")
+        if skill != "All":
+            query = query.eq("skill", skill)
+        if mode == "book":
+            query = query.eq("book", book).eq("unit", unit)
+        elif mode == "topic":
+            query = query.eq("level", level).eq("topic", topic)
+        return query.execute().data
+    except Exception as e:
+        print(f"Lỗi lấy câu hỏi: {e}")
+        return []
     
 # ================= 1. SYSTEM & UI CONFIGURATION =================
 st.set_page_config(page_title="Smart English Class", page_icon="🏫", layout="centered")
@@ -271,7 +277,9 @@ elif st.session_state['role'] == 'student':
     if class_code_input:
         class_data = get_class_info(class_code_input)
         
-        if not class_data:
+        if class_data is None:
+            st.error("⚠️ Không thể kết nối tới cơ sở dữ liệu Supabase! Nếu dự án không hoạt động hơn 7 ngày, Supabase có thể đã tự động Tạm dừng (Paused). Vui lòng vào https://supabase.com/dashboard bấm 'Restore project' rồi thử lại nhé.")
+        elif not class_data:
             st.error("❌ Class Code not found!")
         else:
             class_name = class_data[0]['class_name']
@@ -549,21 +557,24 @@ elif st.session_state['role'] == 'teacher':
         u_tch = st.text_input("Username:")
         p_tch = st.text_input("Password:", type="password")
         if st.button("🔓 Login", type="primary"):
-            res = supabase.table("teachers").select("*").eq("username", u_tch).execute()
-            teacher = res.data[0] if res.data else None
-            if teacher and verify_password(p_tch, teacher.get('password')):
-                # Tự động nâng cấp mật khẩu cũ (plaintext) sang dạng băm
-                if not str(teacher.get('password', '')).startswith("pbkdf2$"):
-                    try:
-                        supabase.table("teachers").update({"password": hash_password(p_tch)}).eq("username", teacher['username']).execute()
-                    except Exception as e:
-                        print(f"Không nâng cấp được mật khẩu: {e}")
-                st.session_state['is_teacher_logged_in'] = True
-                st.session_state['current_teacher'] = teacher['full_name']
-                st.session_state['current_teacher_username'] = teacher['username']
-                st.rerun()
-            else:
-                st.error("❌ Invalid username or password. Please contact Admin.")
+            try:
+                res = supabase.table("teachers").select("*").eq("username", u_tch).execute()
+                teacher = res.data[0] if res.data else None
+                if teacher and verify_password(p_tch, teacher.get('password')):
+                    # Tự động nâng cấp mật khẩu cũ (plaintext) sang dạng băm
+                    if not str(teacher.get('password', '')).startswith("pbkdf2$"):
+                        try:
+                            supabase.table("teachers").update({"password": hash_password(p_tch)}).eq("username", teacher['username']).execute()
+                        except Exception as e:
+                            print(f"Không nâng cấp được mật khẩu: {e}")
+                    st.session_state['is_teacher_logged_in'] = True
+                    st.session_state['current_teacher'] = teacher['full_name']
+                    st.session_state['current_teacher_username'] = teacher['username']
+                    st.rerun()
+                else:
+                    st.error("❌ Invalid username or password. Please contact Admin.")
+            except Exception as e:
+                st.error("⚠️ Không thể kết nối tới cơ sở dữ liệu Supabase! Dự án có thể đang bị Tạm dừng (Paused) sau 7 ngày không hoạt động. Vui lòng vào https://supabase.com/dashboard để 'Restore project'.")
     else:
         c_title, c_btn = st.columns([4, 1])
         with c_title:
