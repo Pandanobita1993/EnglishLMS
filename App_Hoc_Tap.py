@@ -89,13 +89,103 @@ def get_questions(mode, skill, book=None, unit=None, level=None, topic=None):
         if skill != "All":
             query = query.eq("skill", skill)
         if mode == "book":
-            query = query.eq("book", book).eq("unit", unit)
+            if book:
+                query = query.eq("book", book)
+            if unit:
+                if isinstance(unit, list):
+                    query = query.in_("unit", unit)
+                else:
+                    query = query.eq("unit", unit)
         elif mode == "topic":
-            query = query.eq("level", level).eq("topic", topic)
+            if level:
+                query = query.eq("level", level)
+            if topic:
+                query = query.eq("topic", topic)
         return query.execute().data
     except Exception as e:
         print(f"Lỗi lấy câu hỏi: {e}")
         return []
+
+@st.cache_data(ttl=60)
+def get_active_assignments(class_code=None, teacher_username=None):
+    try:
+        now_str = datetime.datetime.now().isoformat()
+        res = supabase.table("assignments").select("*").gte("deadline", now_str).order("deadline", desc=False).execute()
+        raw = res.data or []
+        filtered = []
+        for a in raw:
+            c_code = a.get("class_code")
+            if not class_code or not c_code or c_code == "ALL" or c_code == class_code:
+                if not teacher_username or a.get("teacher_username") == teacher_username:
+                    filtered.append(a)
+        return filtered
+    except Exception as e:
+        print(f"Lỗi đọc bài tập về nhà: {e}")
+        return []
+
+def save_study_log(log_data):
+    try:
+        supabase.table("study_logs").insert(log_data).execute()
+        get_class_study_logs.clear()
+        return True
+    except Exception as e:
+        print(f"Lỗi lưu kết quả học tập (bảng study_logs): {e}")
+        return False
+
+@st.cache_data(ttl=30)
+def get_class_study_logs(class_code):
+    try:
+        res = supabase.table("study_logs").select("*").eq("class_code", class_code).order("completed_at", desc=True).execute()
+        return res.data or []
+    except Exception as e:
+        print(f"Lỗi đọc lịch sử học tập lớp {class_code}: {e}")
+        return []
+
+@st.cache_data(ttl=60)
+def get_teacher_assignments(teacher_username):
+    try:
+        res = supabase.table("assignments").select("*").eq("teacher_username", teacher_username).order("created_at", desc=True).execute()
+        return res.data or []
+    except Exception as e:
+        print(f"Lỗi đọc bài tập giáo viên: {e}")
+        return []
+
+def build_mission_playlist(all_qs, max_q=20):
+    quick_qs = [q for q in all_qs if q.get('ex_type') in ['Ex1', 'Ex2', 'Ex3', 'Ex4', 'Ex5', 'Ex6', 'Ex7', 'Ex8']]
+    if not quick_qs:
+        return []
+    
+    SET_TYPES = ['Ex3', 'Ex4', 'Ex5', 'Ex7', 'Ex8']
+    set_reps = {}
+    bundles = {}
+    standalones = []
+    for q in quick_qs:
+        bid = q.get('bundle_id')
+        if q.get('ex_type') in SET_TYPES:
+            set_reps.setdefault(q['ex_type'], q)
+        elif bid and str(bid).strip() and str(bid).strip().lower() not in ['nan', 'none', '']:
+            if bid not in bundles: bundles[bid] = []
+            bundles[bid].append(q)
+        else:
+            standalones.append(q)
+    standalones.extend(set_reps.values())
+    
+    selected_playlist = []
+    if bundles:
+        chosen_bid = random.choice(list(bundles.keys()))
+        story_qs = sorted(bundles[chosen_bid], key=lambda x: x.get('id', 0))
+        selected_playlist.extend(story_qs)
+        
+        slots_left = max_q - len(selected_playlist)
+        if slots_left > 0 and standalones:
+            fillers = random.sample(standalones, min(slots_left, len(standalones)))
+            selected_playlist.extend(fillers)
+    else:
+        if standalones:
+            fillers = random.sample(standalones, min(max_q, len(standalones)))
+            selected_playlist.extend(fillers)
+            random.shuffle(selected_playlist)
+    return selected_playlist
     
 # ================= 1. SYSTEM & UI CONFIGURATION =================
 st.set_page_config(page_title="Smart English Class", page_icon="🏫", layout="centered")
@@ -303,6 +393,10 @@ elif st.session_state['role'] == 'student':
                         st.session_state['all_questions'] = []
                     if 'mission_completed' not in st.session_state:
                         st.session_state['mission_completed'] = False
+                    if 'active_mission_info' not in st.session_state:
+                        st.session_state['active_mission_info'] = None
+                    if 'last_completed_info' not in st.session_state:
+                        st.session_state['last_completed_info'] = None
 
                     # 2. Xử lý Avatar và tính toán % Vòng tròn tiến độ
                     student_info = next(item for item in students_in_class if item["student_name"] == selected_name)
@@ -403,14 +497,99 @@ elif st.session_state['role'] == 'student':
                     # 3. ĐIỀU HƯỚNG 3 TRẠNG THÁI: HOÀN THÀNH / CHỌN BÀI / ĐANG CHƠI
                     if st.session_state['mission_completed']:
                         st.balloons()
-                        st.markdown("<h2 style='text-align: center; color: #00b894;'>🎉 RAINBOW UNLOCKED! 🎉</h2>", unsafe_allow_html=True)
-                        st.info("You have successfully completed all challenges in this mission!")
-                        if st.button("🚀 CHOOSE ANOTHER MISSION", type="primary", use_container_width=True):
+                        if lottie_success:
+                            st_lottie(lottie_success, height=200, key="success_anim")
+                        
+                        last_info = st.session_state.get('last_completed_info') or {}
+                        m_title = last_info.get('title', 'Nhiệm vụ học tập')
+                        stars_count = last_info.get('stars', 20)
+                        
+                        st.markdown(f"""
+                        <div style="background: linear-gradient(135deg, #00b894 0%, #00cec9 100%); padding: 30px; border-radius: 20px; color: white; text-align: center; box-shadow: 0 10px 30px rgba(0, 184, 148, 0.3); margin-bottom: 25px;">
+                            <h1 style="color: #ffeaa7; margin-bottom: 10px; font-size: 32px;">🌟 RAINBOW UNLOCKED! 🌟</h1>
+                            <h3 style="color: white; margin-top: 0;">Chúc mừng <b>{selected_name}</b> đã xuất sắc hoàn thành nhiệm vụ!</h3>
+                            <div style="background: rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 12px; display: inline-block; margin: 12px 0;">
+                                <span style="font-size: 17px; font-weight: bold;">🎯 {m_title}</span>
+                            </div>
+                            <div style="font-size: 26px; font-weight: 900; color: #feca57; margin: 10px 0;">
+                                {'⭐' * min(stars_count, 10)} +{stars_count} STARS!
+                            </div>
+                            <p style="margin-top: 10px; font-size: 14px; opacity: 0.95;">
+                                ✅ Kết quả và số sao của em đã được tự động lưu lên Bảng Vàng vinh danh của lớp và báo cho Thầy Cô!
+                            </p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        if st.button("🚀 CHỌN BÀI TẬP TIẾP THEO (NEXT MISSION)", type="primary", use_container_width=True):
                             st.session_state['mission_completed'] = False
+                            st.session_state['last_completed_info'] = None
+                            st.session_state['active_mission_info'] = None
+                            st.session_state['playlist'] = []
                             st.rerun()
 
                     elif len(st.session_state['playlist']) == 0:
-                        st.markdown("### 🎯 CHOOSE YOUR MISSION")
+                        # ---------------------------------------------------------
+                        # 📌 PHẦN 1: BÀI TẬP VỀ NHÀ TỪ THẦY CÔ (NẾU CÓ)
+                        # ---------------------------------------------------------
+                        active_hw_list = get_active_assignments(class_code_input)
+                        if active_hw_list:
+                            st.markdown("### 📌 BÀI TẬP VỀ NHÀ TỪ THẦY CÔ")
+                            for hw in active_hw_list:
+                                hw_id = hw.get('id')
+                                hw_book = hw.get('book', 'Kid\'s Box')
+                                hw_units = hw.get('units', [])
+                                hw_skill = hw.get('skill', 'All')
+                                hw_deadline = hw.get('deadline', '')
+                                
+                                if isinstance(hw_units, list):
+                                    units_txt = ", ".join(hw_units)
+                                else:
+                                    units_txt = str(hw_units)
+                                
+                                dl_display = hw_deadline[:16].replace('T', ' ') if hw_deadline else 'Không thời hạn'
+                                
+                                st.markdown(f"""
+                                <div style="background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%); padding: 18px 22px; border-radius: 18px; color: white; margin-bottom: 12px; box-shadow: 0 8px 25px rgba(108, 92, 231, 0.25);">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                                        <span style="font-size: 13px; font-weight: bold; background: rgba(255,255,255,0.25); padding: 5px 12px; border-radius: 12px;">⏰ Hạn nộp: {dl_display}</span>
+                                        <span style="font-size: 13px; font-weight: bold; background: #ffeaa7; color: #2d3436; padding: 5px 12px; border-radius: 12px;">🎯 {hw_skill}</span>
+                                    </div>
+                                    <h3 style="margin: 10px 0 5px 0; color: white !important;">📖 {hw_book} - {units_txt}</h3>
+                                    <p style="margin: 0; font-size: 14px; opacity: 0.95;">Nhiệm vụ về nhà dành cho lớp {class_code_input} - Hoàn thành để cộng sao vinh danh!</p>
+                                </div>
+                                """, unsafe_allow_html=True)
+                                
+                                if st.button(f"🎯 LÀM BÀI TẬP NÀY NGAY ({hw_book})", key=f"btn_hw_{hw_id}", type="primary", use_container_width=True):
+                                    with st.spinner("Đang chuẩn bị bài tập về nhà..."):
+                                        all_qs = get_questions(
+                                            mode="book",
+                                            skill=hw_skill if hw_skill else "All",
+                                            book=hw_book,
+                                            unit=hw_units
+                                        )
+                                        if not all_qs:
+                                            st.warning("⚠️ Chưa tìm thấy câu hỏi trong ngân hàng cho bài tập này. Thầy cô sẽ sớm tải lên!")
+                                        else:
+                                            st.session_state['all_questions'] = all_qs
+                                            mission_qs = build_mission_playlist(all_qs, max_q=20)
+                                            if not mission_qs:
+                                                st.warning("⚠️ Ngân hàng chưa có bài tập dạng tương tác cho bài học này.")
+                                            else:
+                                                st.session_state['playlist'] = mission_qs
+                                                st.session_state['current_q'] = 0
+                                                st.session_state['active_mission_info'] = {
+                                                    'assignment_id': hw_id,
+                                                    'title': f"Homework: {hw_book} ({units_txt})",
+                                                    'skill': hw_skill,
+                                                    'total_questions': len(mission_qs)
+                                                }
+                                                st.rerun()
+                            st.markdown("---")
+
+                        # ---------------------------------------------------------
+                        # 🎯 PHẦN 2: TỰ LUYỆN TẬP TỰ DO (CHOOSE YOUR MISSION)
+                        # ---------------------------------------------------------
+                        st.markdown("### 🎯 TỰ LUYỆN TẬP TỰ DO")
                         
                         df_curriculum = get_curriculum_structure()
                         
@@ -429,12 +608,9 @@ elif st.session_state['role'] == 'student':
                                 with col_b:
                                     books = sorted(df_curriculum['book'].dropna().unique().tolist())
                                     sel_book = st.selectbox("📖 Select Book:", books) if books else st.selectbox("📖 Select Book:", ["N/A"])
+                                painted_units = sorted(df_curriculum[df_curriculum['book'] == sel_book]['unit'].dropna().unique().tolist()) if books else []
                                 with col_u:
-                                    if books:
-                                        units = sorted(df_curriculum[df_curriculum['book'] == sel_book]['unit'].dropna().unique().tolist())
-                                        sel_unit = st.selectbox("🏷️ Select Unit:", units) if units else st.selectbox("🏷️ Select Unit:", ["N/A"])
-                                    else:
-                                        sel_unit = "N/A"
+                                    sel_unit = st.selectbox("🏷️ Select Unit:", painted_units) if painted_units else st.selectbox("🏷️ Select Unit:", ["N/A"])
                                         
                                 btn_start_book = st.button("🚀 START BOOK MISSION", type="primary", use_container_width=True, key="btn_book")
 
@@ -466,55 +642,20 @@ elif st.session_state['role'] == 'student':
                                             st.warning("📭 Oops! No missions found for this selection. Please try another!")
                                         else:
                                             st.session_state['all_questions'] = all_qs
+                                            mission_qs = build_mission_playlist(all_qs, max_q=20)
                                             
-                                            # Bốc các dạng bài tập tương tác (Ex1 -> Ex8)
-                                            quick_qs = [q for q in all_qs if q['ex_type'] in ['Ex1', 'Ex2', 'Ex3', 'Ex4', 'Ex5', 'Ex6', 'Ex7', 'Ex8']]
-                                            
-                                            if not quick_qs:
+                                            if not mission_qs:
                                                 st.warning("⚠️ Oop! Không có bài tập nào cho mục này. Bé Xu đang đi tìm thêm!")
                                             else:
-                                                # --- BẮT ĐẦU LOGIC PHÂN LOẠI CÂU CHUYỆN VÀ CÂU LẺ ---
-                                                # Ex3/Ex4/Ex5/Ex7/Ex8 render cả một BỘ câu hỏi từ all_questions,
-                                                # nên mỗi dạng chỉ cần đại diện bằng 1 mục trong playlist.
-                                                SET_TYPES = ['Ex3', 'Ex4', 'Ex5', 'Ex7', 'Ex8']
-                                                set_reps = {}
-                                                bundles = {}
-                                                standalones = []
-                                                for q in quick_qs:
-                                                    bid = q.get('bundle_id')
-                                                    if q['ex_type'] in SET_TYPES:
-                                                        set_reps.setdefault(q['ex_type'], q)
-                                                    elif bid and str(bid).strip() and str(bid).strip().lower() not in ['nan', 'none', '']:
-                                                        if bid not in bundles: bundles[bid] = []
-                                                        bundles[bid].append(q)
-                                                    else:
-                                                        standalones.append(q)
-                                                standalones.extend(set_reps.values())
-                                                        
-                                                selected_playlist = []
-                                                TOTAL_MISSION_QUESTIONS = 20
-                                                
-                                                if bundles:
-                                                    # TRƯỜNG HỢP 1: CÓ BỘ CÂU HỎI -> TỔNG 20 CÂU
-                                                    chosen_bid = random.choice(list(bundles.keys()))
-                                                    story_qs = sorted(bundles[chosen_bid], key=lambda x: x.get('id', 0)) 
-                                                    selected_playlist.extend(story_qs)
-                                                    
-                                                    slots_left = TOTAL_MISSION_QUESTIONS - len(selected_playlist)
-                                                    if slots_left > 0 and standalones:
-                                                        fillers = random.sample(standalones, min(slots_left, len(standalones)))
-                                                        selected_playlist.extend(fillers)
-                                                else:
-                                                    # TRƯỜNG HỢP 2: KHÔNG CÓ BỘ (Toàn câu lẻ) -> TỔNG 20 CÂU
-                                                    if standalones:
-                                                        fillers = random.sample(standalones, min(TOTAL_MISSION_QUESTIONS, len(standalones)))
-                                                        selected_playlist.extend(fillers)
-                                                        random.shuffle(selected_playlist)
-                                                # ---------------------------------------------------
-                                                
-                                                # Bắt đầu đưa vào playlist cho học sinh chơi
-                                                st.session_state['playlist'] = selected_playlist
+                                                st.session_state['playlist'] = mission_qs
                                                 st.session_state['current_q'] = 0
+                                                m_title = f"{sel_book} - {sel_unit}" if mode=="book" else f"{sel_level} - {sel_topic}"
+                                                st.session_state['active_mission_info'] = {
+                                                    'assignment_id': None,
+                                                    'title': f"Practice: {m_title}",
+                                                    'skill': sel_skill,
+                                                    'total_questions': len(mission_qs)
+                                                }
                                                 st.rerun()
                                     except Exception as e:
                                         st.error(f"⚠️ Error fetching missions: {e}")
@@ -533,8 +674,28 @@ elif st.session_state['role'] == 'student':
                                     st.session_state['current_q'] += 1
                                     st.rerun()
                                 else:
+                                    m_info = st.session_state.get('active_mission_info') or {}
+                                    earned_stars = total_q
+                                    log_payload = {
+                                        "class_code": class_code_input,
+                                        "student_name": selected_name,
+                                        "assignment_id": m_info.get('assignment_id'),
+                                        "mission_title": m_info.get('title', 'Quick Practice'),
+                                        "skill": m_info.get('skill', 'All'),
+                                        "total_questions": total_q,
+                                        "stars_earned": earned_stars,
+                                        "completed_at": datetime.datetime.now().isoformat()
+                                    }
+                                    save_study_log(log_payload)
+                                    
+                                    st.session_state['last_completed_info'] = {
+                                        'title': m_info.get('title', 'Quick Practice'),
+                                        'stars': earned_stars,
+                                        'total': total_q
+                                    }
                                     st.session_state['mission_completed'] = True
                                     st.session_state['playlist'] = []
+                                    st.session_state['active_mission_info'] = None
                                     st.rerun()
                                     
                         st.markdown("<br>", unsafe_allow_html=True)
@@ -586,39 +747,250 @@ elif st.session_state['role'] == 'teacher':
             
         st.markdown("---")
         
-        tab_assign, tab_bank, tab_student = st.tabs(["🛠️ Assign Homework", "🏦 Question Bank", "👧🏻 Manage Students"])
+        tab_assign, tab_reports, tab_bank, tab_student = st.tabs(["🛠️ Assign Homework", "📊 Learning Reports", "🏦 Question Bank", "👧🏻 Manage Students"])
         book_list = ["Kid's Box 1", "Kid's Box 2", "Kid's Box 3", "Kid's Box 4", "Kid's Box 5", "Kid's Box 6"]
         
         with tab_assign:
-            st.markdown("#### Create New Session")
+            st.markdown("#### 🛠️ Giao Bài Tập Về Nhà (Assign Homework)")
+            
+            # Lấy danh sách lớp của giáo viên
+            try:
+                res_tch_cls = supabase.table("classes").select("*").eq("teacher_username", st.session_state['current_teacher_username']).execute()
+                teacher_classes = res_tch_cls.data or []
+            except Exception:
+                teacher_classes = []
+                
+            class_choices = ["ALL (Tất cả các lớp)"] + [f"{c['class_code']} - {c['class_name']}" for c in teacher_classes]
+            
+            col_cls, col_dur = st.columns([2, 1])
+            with col_cls:
+                c_target_class = st.selectbox("🏫 Giao cho lớp:", class_choices)
+                chosen_class_code = "ALL" if c_target_class.startswith("ALL") else c_target_class.split(" - ")[0]
+            with col_dur:
+                thoi_gian = st.number_input("⏳ Thời hạn (Giờ):", min_value=1, value=48)
+                
             col1, col2 = st.columns(2)
             with col1:
                 sach = st.selectbox("📚 Select Book:", book_list)
-                ky_nang = st.selectbox("🎯 Target Skill:", ["Listening", "Reading & Writing", "Speaking"])
+                ky_nang = st.selectbox("🎯 Target Skill:", ["Listening", "Reading & Writing", "Speaking", "Vocabulary", "All"])
             with col2:
-                units = st.multiselect("🏷️ Select Units:", ["Unit 1", "Unit 2", "Unit 3", "Unit 4", "Unit 5"])
-                thoi_gian = st.number_input("⏳ Duration (Hours):", min_value=1, value=48)
+                units = st.multiselect("🏷️ Select Units:", ["Unit 1", "Unit 2", "Unit 3", "Unit 4", "Unit 5", "Unit 6", "Unit 7", "Unit 8"])
             
-            if st.button("🚀 PUBLISH ASSIGNMENT", type="primary", use_container_width=True):
+            if st.button("🚀 XÁC NHẬN GIAO BÀI (PUBLISH ASSIGNMENT)", type="primary", use_container_width=True):
                 if not units:
-                    st.error("⚠️ Please select at least one Unit!")
+                    st.error("⚠️ Vui lòng chọn ít nhất 1 Unit!")
                 else:
                     deadline = datetime.datetime.now() + datetime.timedelta(hours=thoi_gian)
-                    st.session_state['active_session'] = {
-                        'book': sach, 'units': units, 'skill': ky_nang, 
-                        'deadline': deadline
-                    }
+                    success_saved = False
                     try:
                         supabase.table("assignments").insert({
                             "teacher_username": st.session_state['current_teacher_username'],
+                            "class_code": chosen_class_code,
                             "book": sach,
                             "units": units,
                             "skill": ky_nang,
                             "deadline": deadline.isoformat()
                         }).execute()
-                        st.success(f"Successfully published assignment for {sach} ({', '.join(units)})!")
+                        success_saved = True
                     except Exception as e:
-                        st.error(f"❌ Could not save the assignment to the database (does the 'assignments' table exist?): {e}")
+                        try:
+                            supabase.table("assignments").insert({
+                                "teacher_username": st.session_state['current_teacher_username'],
+                                "book": sach,
+                                "units": units,
+                                "skill": ky_nang,
+                                "deadline": deadline.isoformat()
+                            }).execute()
+                            success_saved = True
+                        except Exception as e2:
+                            st.error(f"❌ Không thể lưu bài tập vào CSDL: {e2}")
+                            
+                    if success_saved:
+                        get_active_assignments.clear()
+                        get_teacher_assignments.clear()
+                        st.success(f"🎉 Đã giao bài tập thành công cho {c_target_class}: {sach} ({', '.join(units)})! Hạn nộp: {deadline.strftime('%H:%M %d/%m/%Y')}")
+                        st.rerun()
+
+            st.markdown("---")
+            st.markdown("#### 📋 Danh sách bài tập đã giao gần đây")
+            tch_assignments = get_teacher_assignments(st.session_state['current_teacher_username'])
+            if not tch_assignments:
+                st.info("Chưa có bài tập nào được giao gần đây.")
+            else:
+                for a in tch_assignments[:5]:
+                    a_units = ", ".join(a.get('units', [])) if isinstance(a.get('units'), list) else str(a.get('units', ''))
+                    a_cls = a.get('class_code', 'ALL')
+                    a_dl = a.get('deadline', '')[:16].replace('T', ' ')
+                    st.caption(f"📌 **{a.get('book')}** ({a_units}) - Lớp: `{a_cls}` | Kỹ năng: `{a.get('skill')}` | Hạn chót: `{a_dl}`")
+
+        with tab_reports:
+            st.markdown("#### 📊 Báo cáo Học tập & Bảng Vàng Vinh Danh")
+            
+            try:
+                res_tch_cls = supabase.table("classes").select("*").eq("teacher_username", st.session_state['current_teacher_username']).execute()
+                teacher_classes = res_tch_cls.data or []
+            except Exception:
+                teacher_classes = []
+                
+            if not teacher_classes:
+                st.warning("⚠️ Thầy/Cô chưa được phân công lớp học nào. Vui lòng liên hệ Admin tạo lớp!")
+            else:
+                class_map = {c['class_code']: c['class_name'] for c in teacher_classes}
+                sel_report_class = st.selectbox(
+                    "🏫 Chọn Lớp học để xem báo cáo:", 
+                    options=list(class_map.keys()),
+                    format_func=lambda x: f"{x} - {class_map.get(x, '')}"
+                )
+                
+                col_ref1, col_ref2 = st.columns([3, 1])
+                with col_ref2:
+                    if st.button("🔄 Làm mới báo cáo", use_container_width=True):
+                        get_class_study_logs.clear()
+                        get_students_in_class.clear()
+                        st.rerun()
+                
+                if sel_report_class:
+                    students = get_students_in_class(sel_report_class)
+                    logs = get_class_study_logs(sel_report_class)
+                    
+                    total_students = len(students)
+                    total_submissions = len(logs)
+                    total_stars = sum(l.get('stars_earned', 0) for l in logs)
+                    
+                    student_stats = {s['student_name']: {'stars': 0, 'submissions': 0, 'last_time': 'Chưa làm'} for s in students}
+                    for l in logs:
+                        name = l.get('student_name')
+                        if name not in student_stats:
+                            student_stats[name] = {'stars': 0, 'submissions': 0, 'last_time': 'Chưa làm'}
+                        student_stats[name]['stars'] += l.get('stars_earned', 0)
+                        student_stats[name]['submissions'] += 1
+                        if student_stats[name]['last_time'] == 'Chưa làm' and l.get('completed_at'):
+                            student_stats[name]['last_time'] = l.get('completed_at')[:16].replace('T', ' ')
+                    
+                    sorted_students = sorted(student_stats.items(), key=lambda item: (item[1]['stars'], item[1]['submissions']), reverse=True)
+                    top_star_student = sorted_students[0][0] if sorted_students and sorted_students[0][1]['stars'] > 0 else "Chưa có"
+                    
+                    m1, m2, m3, m4 = st.columns(4)
+                    with m1:
+                        st.metric("🎓 Học sinh", f"{total_students}")
+                    with m2:
+                        st.metric("📝 Lượt hoàn thành", f"{total_submissions}")
+                    with m3:
+                        st.metric("⭐ Tổng Sao đạt được", f"{total_stars}")
+                    with m4:
+                        st.metric("👑 Quán quân Top 1", f"{top_star_student}")
+                        
+                    st.markdown("---")
+                    
+                    st.markdown("### 🏆 BẢNG VÀNG VINH DANH (LEADERBOARD)")
+                    
+                    top_active = [s for s in sorted_students if s[1]['stars'] > 0]
+                    if top_active:
+                        pod_cols = st.columns(3)
+                        podium_order = []
+                        if len(top_active) >= 2:
+                            podium_order.append((pod_cols[0], "🥈 HẠNG NHÌ", top_active[1], "#a0aec0"))
+                        else:
+                            podium_order.append((pod_cols[0], "", None, ""))
+                            
+                        podium_order.append((pod_cols[1], "🥇 QUÁN QUÂN", top_active[0], "#f6e05e"))
+                        
+                        if len(top_active) >= 3:
+                            podium_order.append((pod_cols[2], "🥉 HẠNG BA", top_active[2], "#ed8936"))
+                        else:
+                            podium_order.append((pod_cols[2], "", None, ""))
+                            
+                        for col, rank_lbl, s_data, color in podium_order:
+                            with col:
+                                if s_data:
+                                    s_name, s_val = s_data
+                                    st.markdown(f"""
+                                    <div style="background: white; border-radius: 16px; padding: 15px; text-align: center; border: 2px solid {color}; box-shadow: 0 4px 12px rgba(0,0,0,0.06);">
+                                        <div style="font-size: 16px; font-weight: 900; color: {color}; margin-bottom: 5px;">{rank_lbl}</div>
+                                        <div style="font-size: 18px; font-weight: bold; color: #2d3436;">{s_name}</div>
+                                        <div style="font-size: 22px; font-weight: 900; color: #e17055; margin: 6px 0;">⭐ {s_val['stars']}</div>
+                                        <div style="font-size: 12px; color: #636e72;">{s_val['submissions']} bài đã làm</div>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                    
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    leaderboard_rows = []
+                    for rank, (s_name, s_val) in enumerate(sorted_students, 1):
+                        leaderboard_rows.append({
+                            "Hạng": f"#{rank}",
+                            "Tên Học Sinh": s_name,
+                            "Tổng Sao ⭐": s_val['stars'],
+                            "Số bài đã nộp": s_val['submissions'],
+                            "Lần làm gần nhất": s_val['last_time']
+                        })
+                    
+                    df_leaderboard = pd.DataFrame(leaderboard_rows)
+                    st.dataframe(df_leaderboard, use_container_width=True, hide_index=True)
+                    
+                    st.markdown("---")
+                    
+                    st.markdown("### 📌 THEO DÕI NỘP BÀI TẬP VỀ NHÀ")
+                    
+                    try:
+                        res_assign = supabase.table("assignments").select("*").execute()
+                        all_assign = res_assign.data or []
+                        class_assign = [a for a in all_assign if a.get('class_code') in ['ALL', sel_report_class, None]]
+                    except Exception:
+                        class_assign = []
+                        
+                    if not class_assign:
+                        st.info("Chưa có bài tập về nhà nào được giao cho lớp này.")
+                    else:
+                        for assign in class_assign:
+                            a_id = assign.get('id')
+                            a_book = assign.get('book', 'Kid\'s Box')
+                            a_units = ", ".join(assign.get('units', [])) if isinstance(assign.get('units'), list) else str(assign.get('units', ''))
+                            a_dl = assign.get('deadline', '')[:16].replace('T', ' ')
+                            
+                            submitted_students = set()
+                            for l in logs:
+                                if l.get('assignment_id') == a_id:
+                                    submitted_students.add(l.get('student_name'))
+                            
+                            sub_count = len(submitted_students)
+                            pct = (sub_count / total_students) if total_students > 0 else 0
+                            
+                            with st.expander(f"📖 {a_book} ({a_units}) — Đã nộp: {sub_count}/{total_students} ({int(pct*100)}%) | Hạn: {a_dl}", expanded=True):
+                                st.progress(pct)
+                                c_sub, c_unsub = st.columns(2)
+                                with c_sub:
+                                    st.markdown("##### ✅ Đã nộp bài:")
+                                    if submitted_students:
+                                        for s in sorted(submitted_students):
+                                            st.write(f"• **{s}**")
+                                    else:
+                                        st.caption("Chưa có học sinh nào nộp.")
+                                with c_unsub:
+                                    st.markdown("##### ⏳ Chưa nộp bài:")
+                                    unsub = [s['student_name'] for s in students if s['student_name'] not in submitted_students]
+                                    if unsub:
+                                        for s in sorted(unsub):
+                                            st.write(f"• {s}")
+                                    else:
+                                        st.success("Tất cả học sinh đã nộp bài! 🎉")
+                                        
+                    st.markdown("---")
+                    
+                    st.markdown("### 📝 NHẬT KÝ LÀM BÀI CHI TIẾT (GẦN ĐÂY)")
+                    if not logs:
+                        st.info("Chưa có nhật ký học tập nào được ghi nhận.")
+                    else:
+                        recent_rows = []
+                        for l in logs[:30]:
+                            recent_rows.append({
+                                "Thời gian": l.get('completed_at', '')[:16].replace('T', ' '),
+                                "Học Sinh": l.get('student_name'),
+                                "Bài học / Nhiệm vụ": l.get('mission_title'),
+                                "Kỹ năng": l.get('skill', 'All'),
+                                "Số câu": l.get('total_questions', 20),
+                                "Sao ⭐": l.get('stars_earned', 20)
+                            })
+                        st.dataframe(pd.DataFrame(recent_rows), use_container_width=True, hide_index=True)
 
         with tab_bank:
             st.markdown("#### 🏦 Import Questions from Excel")
