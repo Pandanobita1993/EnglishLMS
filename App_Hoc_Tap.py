@@ -555,29 +555,41 @@ elif st.session_state['role'] == 'student':
                         </div>
                         <div class="mini-chat" id="mascot_chat_msg">{chat_msg}</div>
                     </div>
+                    """
+                    st.markdown(floating_html, unsafe_allow_html=True)
 
+                    mascot_controller_html = f"""
+                    <!DOCTYPE html>
+                    <html>
+                    <head></head>
+                    <body>
                     <script>
                         (function() {{
+                            const targetWin = window.parent || window.top || window;
+                            const targetDoc = targetWin.document || document;
                             const mascotData = {mascot_js_data};
                             const defaultIdleImg = "{widget_img_src}";
                             const defaultIdleMsg = "{chat_msg}";
-                            let resetTimer = null;
 
-                            window.addEventListener('message', function(event) {{
-                                if (!event.data || event.data.type !== 'MASCOT_REACTION') return;
-                                const status = event.data.status;
-                                const imgEl = document.getElementById('mascot_avatar_img');
-                                const chatEl = document.getElementById('mascot_chat_msg');
-                                const circleEl = document.getElementById('mascot_circle');
+                            targetWin.__mascotData = mascotData;
+                            targetWin.__defaultIdleImg = defaultIdleImg;
+                            targetWin.__defaultIdleMsg = defaultIdleMsg;
 
-                                if (resetTimer) clearTimeout(resetTimer);
+                            targetWin.triggerMascotReaction = function(status) {{
+                                const imgEl = targetDoc.getElementById('mascot_avatar_img');
+                                const chatEl = targetDoc.getElementById('mascot_chat_msg');
+                                const circleEl = targetDoc.getElementById('mascot_circle');
+                                const mData = targetWin.__mascotData;
+
+                                if (!imgEl || !chatEl) return;
+                                if (targetWin.__mascotTimer) clearTimeout(targetWin.__mascotTimer);
 
                                 if (status === 'correct') {{
-                                    if (imgEl && mascotData.expressions && mascotData.expressions.correct) {{
-                                        imgEl.src = mascotData.expressions.correct;
+                                    if (imgEl && mData.expressions && mData.expressions.correct) {{
+                                        imgEl.src = mData.expressions.correct;
                                     }}
-                                    if (chatEl && mascotData.quotes && mascotData.quotes.correct) {{
-                                        const quotes = mascotData.quotes.correct;
+                                    if (chatEl && mData.quotes && mData.quotes.correct) {{
+                                        const quotes = mData.quotes.correct;
                                         chatEl.innerText = quotes[Math.floor(Math.random() * quotes.length)];
                                     }}
                                     if (circleEl) {{
@@ -586,11 +598,11 @@ elif st.session_state['role'] == 'student':
                                         circleEl.classList.add('mascot-bounce');
                                     }}
                                 }} else if (status === 'wrong') {{
-                                    if (imgEl && mascotData.expressions && mascotData.expressions.encourage) {{
-                                        imgEl.src = mascotData.expressions.encourage;
+                                    if (imgEl && mData.expressions && mData.expressions.encourage) {{
+                                        imgEl.src = mData.expressions.encourage;
                                     }}
-                                    if (chatEl && mascotData.quotes && mascotData.quotes.wrong) {{
-                                        const quotes = mascotData.quotes.wrong;
+                                    if (chatEl && mData.quotes && mData.quotes.wrong) {{
+                                        const quotes = mData.quotes.wrong;
                                         chatEl.innerText = quotes[Math.floor(Math.random() * quotes.length)];
                                     }}
                                     if (circleEl) {{
@@ -600,16 +612,29 @@ elif st.session_state['role'] == 'student':
                                     }}
                                 }}
 
-                                resetTimer = setTimeout(function() {{
-                                    if (imgEl) imgEl.src = defaultIdleImg;
-                                    if (chatEl) chatEl.innerText = defaultIdleMsg;
+                                targetWin.__mascotTimer = setTimeout(function() {{
+                                    if (imgEl) imgEl.src = targetWin.__defaultIdleImg;
+                                    if (chatEl) chatEl.innerText = targetWin.__defaultIdleMsg;
                                     if (circleEl) circleEl.classList.remove('mascot-bounce', 'mascot-wobble');
                                 }}, 3600);
-                            }});
+                            }};
+
+                            if (targetWin.__mascotListener) {{
+                                targetWin.removeEventListener('message', targetWin.__mascotListener);
+                            }}
+
+                            targetWin.__mascotListener = function(event) {{
+                                if (!event.data || event.data.type !== 'MASCOT_REACTION') return;
+                                targetWin.triggerMascotReaction(event.data.status);
+                            }};
+
+                            targetWin.addEventListener('message', targetWin.__mascotListener);
                         }})();
                     </script>
+                    </body>
+                    </html>
                     """
-                    st.markdown(floating_html, unsafe_allow_html=True)
+                    components.html(mascot_controller_html, height=0)
                     st.markdown("---")
 
                     # 5. NAVIGATION & THREE MAIN STATES (100% English)

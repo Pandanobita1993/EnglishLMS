@@ -102,7 +102,10 @@ def run_ex1_dynamic(q_data, idx):
             }}
 
             function notifyMascot(status) {{
+                try {{ if (window.parent && typeof window.parent.triggerMascotReaction === 'function') window.parent.triggerMascotReaction(status); }} catch(e) {{}}
+                try {{ if (window.top && typeof window.top.triggerMascotReaction === 'function') window.top.triggerMascotReaction(status); }} catch(e) {{}}
                 try {{ if (window.parent) window.parent.postMessage({{ type: 'MASCOT_REACTION', status: status }}, '*'); }} catch(e) {{}}
+                try {{ if (window.top) window.top.postMessage({{ type: 'MASCOT_REACTION', status: status }}, '*'); }} catch(e) {{}}
             }}
             function checkWin() {{
                 if (answer.length === targetWord.length) {{
@@ -184,7 +187,10 @@ def run_ex2_dynamic(q_data, idx):
             }}
 
             function notifyMascot(status) {{
+                try {{ if (window.parent && typeof window.parent.triggerMascotReaction === 'function') window.parent.triggerMascotReaction(status); }} catch(e) {{}}
+                try {{ if (window.top && typeof window.top.triggerMascotReaction === 'function') window.top.triggerMascotReaction(status); }} catch(e) {{}}
                 try {{ if (window.parent) window.parent.postMessage({{ type: 'MASCOT_REACTION', status: status }}, '*'); }} catch(e) {{}}
+                try {{ if (window.top) window.top.postMessage({{ type: 'MASCOT_REACTION', status: status }}, '*'); }} catch(e) {{}}
             }}
             function checkAnswer() {{
                 if (!selectedOpt) {{
@@ -282,7 +288,10 @@ def run_ex3_dynamic(all_qs, idx):
             }}
 
             function notifyMascot(status) {{
+                try {{ if (window.parent && typeof window.parent.triggerMascotReaction === 'function') window.parent.triggerMascotReaction(status); }} catch(e) {{}}
+                try {{ if (window.top && typeof window.top.triggerMascotReaction === 'function') window.top.triggerMascotReaction(status); }} catch(e) {{}}
                 try {{ if (window.parent) window.parent.postMessage({{ type: 'MASCOT_REACTION', status: status }}, '*'); }} catch(e) {{}}
+                try {{ if (window.top) window.top.postMessage({{ type: 'MASCOT_REACTION', status: status }}, '*'); }} catch(e) {{}}
             }}
             function checkMatch() {{
                 if (selA && selB) {{
@@ -448,7 +457,10 @@ def run_ex4_dynamic(all_qs, idx):
             bankEl.appendChild(pill);
         }}
             function notifyMascot(status) {{
+                try {{ if (window.parent && typeof window.parent.triggerMascotReaction === 'function') window.parent.triggerMascotReaction(status); }} catch(e) {{}}
+                try {{ if (window.top && typeof window.top.triggerMascotReaction === 'function') window.top.triggerMascotReaction(status); }} catch(e) {{}}
                 try {{ if (window.parent) window.parent.postMessage({{ type: 'MASCOT_REACTION', status: status }}, '*'); }} catch(e) {{}}
+                try {{ if (window.top) window.top.postMessage({{ type: 'MASCOT_REACTION', status: status }}, '*'); }} catch(e) {{}}
             }}
         function checkAnswers() {{
             let allCorrect = true; let filledCount = 0;
@@ -568,7 +580,10 @@ def run_ex5_dynamic(all_qs, idx):
             }}
 
             function notifyMascot(status) {{
+                try {{ if (window.parent && typeof window.parent.triggerMascotReaction === 'function') window.parent.triggerMascotReaction(status); }} catch(e) {{}}
+                try {{ if (window.top && typeof window.top.triggerMascotReaction === 'function') window.top.triggerMascotReaction(status); }} catch(e) {{}}
                 try {{ if (window.parent) window.parent.postMessage({{ type: 'MASCOT_REACTION', status: status }}, '*'); }} catch(e) {{}}
+                try {{ if (window.top) window.top.postMessage({{ type: 'MASCOT_REACTION', status: status }}, '*'); }} catch(e) {{}}
             }}
             function disableCards() {{
                 notifyMascot('correct');
@@ -690,7 +705,10 @@ def run_ex6_dynamic(q_data, idx):
             }});
 
             function notifyMascot(status) {{
+                try {{ if (window.parent && typeof window.parent.triggerMascotReaction === 'function') window.parent.triggerMascotReaction(status); }} catch(e) {{}}
+                try {{ if (window.top && typeof window.top.triggerMascotReaction === 'function') window.top.triggerMascotReaction(status); }} catch(e) {{}}
                 try {{ if (window.parent) window.parent.postMessage({{ type: 'MASCOT_REACTION', status: status }}, '*'); }} catch(e) {{}}
+                try {{ if (window.top) window.top.postMessage({{ type: 'MASCOT_REACTION', status: status }}, '*'); }} catch(e) {{}}
             }}
             function checkOrder() {{
                 const currentOrder = Array.from(listEl.children).map(el => el.innerText).join(' ');
@@ -826,7 +844,10 @@ def run_ex7_dynamic(all_qs, idx):
             }}
 
                         function notifyMascot(status) {{
+                try {{ if (window.parent && typeof window.parent.triggerMascotReaction === 'function') window.parent.triggerMascotReaction(status); }} catch(e) {{}}
+                try {{ if (window.top && typeof window.top.triggerMascotReaction === 'function') window.top.triggerMascotReaction(status); }} catch(e) {{}}
                 try {{ if (window.parent) window.parent.postMessage({{ type: 'MASCOT_REACTION', status: status }}, '*'); }} catch(e) {{}}
+                try {{ if (window.top) window.top.postMessage({{ type: 'MASCOT_REACTION', status: status }}, '*'); }} catch(e) {{}}
             }}
 
             function checkAll() {{
@@ -1280,7 +1301,10 @@ def run_ex8_dynamic(all_qs, idx):
             }}
 
                         function notifyMascot(status) {{
+                try {{ if (window.parent && typeof window.parent.triggerMascotReaction === 'function') window.parent.triggerMascotReaction(status); }} catch(e) {{}}
+                try {{ if (window.top && typeof window.top.triggerMascotReaction === 'function') window.top.triggerMascotReaction(status); }} catch(e) {{}}
                 try {{ if (window.parent) window.parent.postMessage({{ type: 'MASCOT_REACTION', status: status }}, '*'); }} catch(e) {{}}
+                try {{ if (window.top) window.top.postMessage({{ type: 'MASCOT_REACTION', status: status }}, '*'); }} catch(e) {{}}
             }}
 
             function checkAnswers() {{
