@@ -1198,7 +1198,7 @@ elif st.session_state['role'] == 'teacher':
                 st.error("⚠️ Supabase connection error! Please check your table structure.")
 
         with tab_student:
-            st.markdown("#### 👧🏻 Manage Class Students")
+            st.markdown("#### 👧🏻 Manage Class Students 🐾 (v2.2)")
             res_classes = supabase.table("classes").select("*").eq("teacher_username", st.session_state['current_teacher_username']).execute()
             db_classes = res_classes.data
             
