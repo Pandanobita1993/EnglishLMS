@@ -21,6 +21,7 @@ import hashlib
 import hmac
 import secrets as pysecrets
 from supabase import create_client, Client
+import mascot_config
 
 # Khởi tạo kết nối (Cache_resource giúp kết nối chạy 1 lần duy nhất)
 @st.cache_resource
@@ -386,7 +387,7 @@ elif st.session_state['role'] == 'student':
                 # BƯỚC 3: KIỂM TRA ĐĂNG NHẬP THÀNH CÔNG -> HIỂN THỊ AVATAR NỔI VÀ BÀI TẬP
                 if selected_name != "👇 Click here...":
                     
-                    # 1. Khởi tạo các biến lưu trạng thái nếu chưa có
+                    # 1. State initialization
                     if 'playlist' not in st.session_state:
                         st.session_state['playlist'] = []
                         st.session_state['current_q'] = 0
@@ -398,14 +399,55 @@ elif st.session_state['role'] == 'student':
                     if 'last_completed_info' not in st.session_state:
                         st.session_state['last_completed_info'] = None
 
-                    # 2. Xử lý Avatar và tính toán % Vòng tròn tiến độ
+                    # 2. Companion Mascot Resolution
                     student_info = next(item for item in students_in_class if item["student_name"] == selected_name)
-                    avatar_src = f"data:image/jpeg;base64,{student_info['avatar']}" if student_info['avatar'] else "https://cdn-icons-png.flaticon.com/512/149/149071.png"
-                    
+                    is_mascot, mascot_obj, avatar_src = mascot_config.parse_student_avatar(student_info.get('avatar'))
+                    current_mascot_id = mascot_obj['id'] if (is_mascot and mascot_obj) else mascot_config.DEFAULT_MASCOT_ID
+                    active_mascot = mascot_config.get_mascot(current_mascot_id)
+                    mascot_js_data = mascot_config.get_mascot_js_payload(current_mascot_id)
+
+                    # 3. Companion Header & Interactive Switcher (100% English)
+                    col_comp1, col_comp2 = st.columns([3, 1])
+                    with col_comp1:
+                        st.markdown(f"🐾 **Study Companion:** {active_mascot['badge']} **{active_mascot['name']}** — *{active_mascot['personality']}*")
+                    with col_comp2:
+                        toggle_companion = st.toggle("🎨 Change", key=f"tgl_mascot_{selected_name}")
+
+                    if toggle_companion:
+                        st.markdown("##### 🌟 Choose Your Study Companion")
+                        st.caption("Pick a mascot companion to cheer you on and react to your answers!")
+                        all_mascots = mascot_config.get_all_mascots()
+                        m_cols = st.columns(len(all_mascots))
+                        for i, m_item in enumerate(all_mascots):
+                            with m_cols[i]:
+                                is_curr = (m_item['id'] == active_mascot['id'])
+                                border_style = "2px solid #00b894; background: #e6fffa;" if is_curr else "1px solid #dfe6e9; background: white;"
+                                st.markdown(f"""
+                                <div style="text-align: center; padding: 10px 6px; border-radius: 12px; border: {border_style}; margin-bottom: 8px;">
+                                    <img src="{m_item['expressions']['idle']}" style="width: 55px; height: 55px; border-radius: 50%; object-fit: cover; margin-bottom: 6px;">
+                                    <div style="font-weight: 800; font-size: 13px; color: #2d3436;">{m_item['badge']} {m_item['name']}</div>
+                                    <div style="font-size: 11px; color: #6c5ce7; font-weight: bold; margin: 3px 0;">{m_item['personality']}</div>
+                                </div>
+                                """, unsafe_allow_html=True)
+                                if not is_curr:
+                                    if st.button(f"Pick {m_item['badge']}", key=f"btn_pick_{m_item['id']}", use_container_width=True):
+                                        try:
+                                            supabase.table("students").update({"avatar": f"mascot:{m_item['id']}"}).eq("class_code", class_code_input).eq("student_name", selected_name).execute()
+                                            get_students_in_class.clear()
+                                            st.success(f"🎉 {m_item['name']} is now your companion!")
+                                            st.rerun()
+                                        except Exception as err:
+                                            st.error(f"Could not update companion: {err}")
+                                else:
+                                    st.caption("✅ Selected")
+                        st.markdown("---")
+
+                    # 4. Circular Progress & Reactive Mascot Widget
                     if st.session_state['mission_completed']:
                         bg_css = "background: conic-gradient(red, orange, yellow, green, blue, indigo, violet, red); animation: spin 3s linear infinite;"
                         progress_text = "Well Done!"
-                        chat_msg = f"🌈 Excellent job, {selected_name}! You are a star!"
+                        chat_msg = f"🏆 {active_mascot['quotes']['celebrate'][0]}"
+                        widget_img_src = active_mascot['expressions']['celebrate']
                     else:
                         if len(st.session_state['playlist']) > 0:
                             total_q = len(st.session_state['playlist'])
@@ -415,12 +457,12 @@ elif st.session_state['role'] == 'student':
                             deg_per_q = 360 / total_q
                             for i in range(total_q):
                                 start_deg = i * deg_per_q
-                                end_deg = (i + 1) * deg_per_q - 4 # Tạo độ hở cho các đốt
+                                end_deg = (i + 1) * deg_per_q - 4
                                 gap_end = (i + 1) * deg_per_q
                                 
-                                if i < curr_idx: color = "#00b894" # Xanh lá (Đã qua)
-                                elif i == curr_idx: color = "#feca57" # Vàng (Đang làm)
-                                else: color = "#dfe6e9" # Xám (Chưa tới)
+                                if i < curr_idx: color = "#00b894"
+                                elif i == curr_idx: color = "#feca57"
+                                else: color = "#dfe6e9"
                                 
                                 gradient_stops.append(f"{color} {start_deg}deg {end_deg}deg")
                                 gradient_stops.append(f"transparent {end_deg}deg {gap_end}deg")
@@ -428,12 +470,13 @@ elif st.session_state['role'] == 'student':
                             bg_css = f"background: conic-gradient({', '.join(gradient_stops)});"
                             progress_text = f"{curr_idx + 1}/{total_q}"
                             chat_msg = f"🚀 Keep going, {selected_name}!"
+                            widget_img_src = avatar_src
                         else:
                             bg_css = "background: #dfe6e9;"
                             progress_text = "Ready"
-                            chat_msg = f"🎉 Hello {selected_name}!"
+                            chat_msg = active_mascot['quotes']['welcome'][0]
+                            widget_img_src = avatar_src
 
-                    # Giao diện Floating Widget
                     floating_html = f"""
                     <style>
                         .floating-widget {{
@@ -444,8 +487,29 @@ elif st.session_state['role'] == 'student':
                             position: relative; width: 140px; height: 140px; border-radius: 50%;
                             display: flex; align-items: center; justify-content: center;
                             box-shadow: 0 8px 25px rgba(0,0,0,0.15); pointer-events: auto; overflow: hidden;
+                            transition: transform 0.3s ease;
                         }}
                         @keyframes spin {{ 100% {{ transform: rotate(360deg); }} }}
+                        @keyframes mascotBounce {{
+                            0%, 100% {{ transform: scale(1); }}
+                            30% {{ transform: scale(1.18) translateY(-10px); }}
+                            60% {{ transform: scale(0.95); }}
+                        }}
+                        @keyframes mascotWobble {{
+                            0%, 100% {{ transform: translateX(0); }}
+                            20% {{ transform: translateX(-8px) rotate(-6deg); }}
+                            40% {{ transform: translateX(8px) rotate(6deg); }}
+                            60% {{ transform: translateX(-5px) rotate(-3deg); }}
+                            80% {{ transform: translateX(5px) rotate(3deg); }}
+                        }}
+                        .mascot-bounce {{
+                            animation: mascotBounce 0.65s ease-in-out !important;
+                            box-shadow: 0 0 25px #55efc4 !important;
+                        }}
+                        .mascot-wobble {{
+                            animation: mascotWobble 0.65s ease-in-out !important;
+                            box-shadow: 0 0 25px #ff7675 !important;
+                        }}
                         .circular-progress-bg {{
                             position: absolute; width: 100%; height: 100%; border-radius: 50%; {bg_css}
                         }}
@@ -455,7 +519,7 @@ elif st.session_state['role'] == 'student':
                         }}
                         .avatar-img-float {{
                             width: 110px; height: 110px; border-radius: 50%; object-fit: cover;
-                            z-index: 2; border: 2px solid #f1f2f6;
+                            z-index: 2; border: 2px solid #f1f2f6; transition: all 0.25s ease;
                         }}
                         .progress-badge {{
                             position: absolute; bottom: 0px; left: 50%; transform: translateX(-50%);
@@ -466,8 +530,9 @@ elif st.session_state['role'] == 'student':
                         .mini-chat {{
                             background: white; padding: 12px 20px; border-radius: 15px;
                             border-left: 5px solid #00b894; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-                            font-size: 16px; font-weight: bold; color: #2d3436; position: relative;
+                            font-size: 15px; font-weight: bold; color: #2d3436; position: relative;
                             animation: floatUpDown 3s ease-in-out infinite; pointer-events: auto; white-space: nowrap;
+                            max-width: 320px; text-overflow: ellipsis; overflow: hidden;
                         }}
                         .mini-chat::before {{
                             content: ''; position: absolute; left: -10px; top: 50%; transform: translateY(-50%);
@@ -483,31 +548,84 @@ elif st.session_state['role'] == 'student':
                         }}
                     </style>
                     <div class="floating-widget">
-                        <div class="circular-progress-container">
+                        <div class="circular-progress-container" id="mascot_circle">
                             <div class="circular-progress-bg"></div>
-                            <img src="{avatar_src}" class="avatar-img-float">
+                            <img id="mascot_avatar_img" src="{widget_img_src}" class="avatar-img-float">
                             <div class="progress-badge">{progress_text}</div>
                         </div>
-                        <div class="mini-chat">{chat_msg}</div>
+                        <div class="mini-chat" id="mascot_chat_msg">{chat_msg}</div>
                     </div>
+
+                    <script>
+                        (function() {{
+                            const mascotData = {mascot_js_data};
+                            const defaultIdleImg = "{widget_img_src}";
+                            const defaultIdleMsg = "{chat_msg}";
+                            let resetTimer = null;
+
+                            window.addEventListener('message', function(event) {{
+                                if (!event.data || event.data.type !== 'MASCOT_REACTION') return;
+                                const status = event.data.status;
+                                const imgEl = document.getElementById('mascot_avatar_img');
+                                const chatEl = document.getElementById('mascot_chat_msg');
+                                const circleEl = document.getElementById('mascot_circle');
+
+                                if (resetTimer) clearTimeout(resetTimer);
+
+                                if (status === 'correct') {{
+                                    if (imgEl && mascotData.expressions && mascotData.expressions.correct) {{
+                                        imgEl.src = mascotData.expressions.correct;
+                                    }}
+                                    if (chatEl && mascotData.quotes && mascotData.quotes.correct) {{
+                                        const quotes = mascotData.quotes.correct;
+                                        chatEl.innerText = quotes[Math.floor(Math.random() * quotes.length)];
+                                    }}
+                                    if (circleEl) {{
+                                        circleEl.classList.remove('mascot-bounce', 'mascot-wobble');
+                                        void circleEl.offsetWidth;
+                                        circleEl.classList.add('mascot-bounce');
+                                    }}
+                                }} else if (status === 'wrong') {{
+                                    if (imgEl && mascotData.expressions && mascotData.expressions.encourage) {{
+                                        imgEl.src = mascotData.expressions.encourage;
+                                    }}
+                                    if (chatEl && mascotData.quotes && mascotData.quotes.wrong) {{
+                                        const quotes = mascotData.quotes.wrong;
+                                        chatEl.innerText = quotes[Math.floor(Math.random() * quotes.length)];
+                                    }}
+                                    if (circleEl) {{
+                                        circleEl.classList.remove('mascot-bounce', 'mascot-wobble');
+                                        void circleEl.offsetWidth;
+                                        circleEl.classList.add('mascot-wobble');
+                                    }}
+                                }}
+
+                                resetTimer = setTimeout(function() {{
+                                    if (imgEl) imgEl.src = defaultIdleImg;
+                                    if (chatEl) chatEl.innerText = defaultIdleMsg;
+                                    if (circleEl) circleEl.classList.remove('mascot-bounce', 'mascot-wobble');
+                                }}, 3600);
+                            }});
+                        }})();
+                    </script>
                     """
                     st.markdown(floating_html, unsafe_allow_html=True)
                     st.markdown("---")
 
-                    # 3. ĐIỀU HƯỚNG 3 TRẠNG THÁI: HOÀN THÀNH / CHỌN BÀI / ĐANG CHƠI
+                    # 5. NAVIGATION & THREE MAIN STATES (100% English)
                     if st.session_state['mission_completed']:
                         st.balloons()
                         if lottie_success:
                             st_lottie(lottie_success, height=200, key="success_anim")
                         
                         last_info = st.session_state.get('last_completed_info') or {}
-                        m_title = last_info.get('title', 'Nhiệm vụ học tập')
+                        m_title = last_info.get('title', 'Learning Mission')
                         stars_count = last_info.get('stars', 20)
                         
                         st.markdown(f"""
                         <div style="background: linear-gradient(135deg, #00b894 0%, #00cec9 100%); padding: 30px; border-radius: 20px; color: white; text-align: center; box-shadow: 0 10px 30px rgba(0, 184, 148, 0.3); margin-bottom: 25px;">
                             <h1 style="color: #ffeaa7; margin-bottom: 10px; font-size: 32px;">🌟 RAINBOW UNLOCKED! 🌟</h1>
-                            <h3 style="color: white; margin-top: 0;">Chúc mừng <b>{selected_name}</b> đã xuất sắc hoàn thành nhiệm vụ!</h3>
+                            <h3 style="color: white; margin-top: 0;">Congratulations <b>{selected_name}</b> and <b>{active_mascot['name']}</b>!</h3>
                             <div style="background: rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 12px; display: inline-block; margin: 12px 0;">
                                 <span style="font-size: 17px; font-weight: bold;">🎯 {m_title}</span>
                             </div>
@@ -515,12 +633,12 @@ elif st.session_state['role'] == 'student':
                                 {'⭐' * min(stars_count, 10)} +{stars_count} STARS!
                             </div>
                             <p style="margin-top: 10px; font-size: 14px; opacity: 0.95;">
-                                ✅ Kết quả và số sao của em đã được tự động lưu lên Bảng Vàng vinh danh của lớp và báo cho Thầy Cô!
+                                ✅ Your stars and achievements have been submitted to your class leaderboard!
                             </p>
                         </div>
                         """, unsafe_allow_html=True)
                         
-                        if st.button("🚀 CHỌN BÀI TẬP TIẾP THEO (NEXT MISSION)", type="primary", use_container_width=True):
+                        if st.button("🚀 CHOOSE ANOTHER MISSION", type="primary", use_container_width=True):
                             st.session_state['mission_completed'] = False
                             st.session_state['last_completed_info'] = None
                             st.session_state['active_mission_info'] = None
@@ -528,12 +646,10 @@ elif st.session_state['role'] == 'student':
                             st.rerun()
 
                     elif len(st.session_state['playlist']) == 0:
-                        # ---------------------------------------------------------
-                        # 📌 PHẦN 1: BÀI TẬP VỀ NHÀ TỪ THẦY CÔ (NẾU CÓ)
-                        # ---------------------------------------------------------
+                        # SECTION A: ACTIVE HOMEWORK (100% English)
                         active_hw_list = get_active_assignments(class_code_input)
                         if active_hw_list:
-                            st.markdown("### 📌 BÀI TẬP VỀ NHÀ TỪ THẦY CÔ")
+                            st.markdown("### 📌 CLASS HOMEWORK ASSIGNMENTS")
                             for hw in active_hw_list:
                                 hw_id = hw.get('id')
                                 hw_book = hw.get('book', 'Kid\'s Box')
@@ -546,21 +662,21 @@ elif st.session_state['role'] == 'student':
                                 else:
                                     units_txt = str(hw_units)
                                 
-                                dl_display = hw_deadline[:16].replace('T', ' ') if hw_deadline else 'Không thời hạn'
+                                dl_display = hw_deadline[:16].replace('T', ' ') if hw_deadline else 'No deadline'
                                 
                                 st.markdown(f"""
                                 <div style="background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%); padding: 18px 22px; border-radius: 18px; color: white; margin-bottom: 12px; box-shadow: 0 8px 25px rgba(108, 92, 231, 0.25);">
                                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                                        <span style="font-size: 13px; font-weight: bold; background: rgba(255,255,255,0.25); padding: 5px 12px; border-radius: 12px;">⏰ Hạn nộp: {dl_display}</span>
+                                        <span style="font-size: 13px; font-weight: bold; background: rgba(255,255,255,0.25); padding: 5px 12px; border-radius: 12px;">⏰ Due Date: {dl_display}</span>
                                         <span style="font-size: 13px; font-weight: bold; background: #ffeaa7; color: #2d3436; padding: 5px 12px; border-radius: 12px;">🎯 {hw_skill}</span>
                                     </div>
                                     <h3 style="margin: 10px 0 5px 0; color: white !important;">📖 {hw_book} - {units_txt}</h3>
-                                    <p style="margin: 0; font-size: 14px; opacity: 0.95;">Nhiệm vụ về nhà dành cho lớp {class_code_input} - Hoàn thành để cộng sao vinh danh!</p>
+                                    <p style="margin: 0; font-size: 14px; opacity: 0.95;">Official homework mission for class {class_code_input} — Complete to earn Stars!</p>
                                 </div>
                                 """, unsafe_allow_html=True)
                                 
-                                if st.button(f"🎯 LÀM BÀI TẬP NÀY NGAY ({hw_book})", key=f"btn_hw_{hw_id}", type="primary", use_container_width=True):
-                                    with st.spinner("Đang chuẩn bị bài tập về nhà..."):
+                                if st.button(f"🎯 START HOMEWORK MISSION ({hw_book})", key=f"btn_hw_{hw_id}", type="primary", use_container_width=True):
+                                    with st.spinner("Preparing your homework mission..."):
                                         all_qs = get_questions(
                                             mode="book",
                                             skill=hw_skill if hw_skill else "All",
@@ -568,12 +684,12 @@ elif st.session_state['role'] == 'student':
                                             unit=hw_units
                                         )
                                         if not all_qs:
-                                            st.warning("⚠️ Chưa tìm thấy câu hỏi trong ngân hàng cho bài tập này. Thầy cô sẽ sớm tải lên!")
+                                            st.warning("⚠️ Questions for this assignment are coming soon!")
                                         else:
                                             st.session_state['all_questions'] = all_qs
                                             mission_qs = build_mission_playlist(all_qs, max_q=20)
                                             if not mission_qs:
-                                                st.warning("⚠️ Ngân hàng chưa có bài tập dạng tương tác cho bài học này.")
+                                                st.warning("⚠️ No interactive exercises available for this unit yet.")
                                             else:
                                                 st.session_state['playlist'] = mission_qs
                                                 st.session_state['current_q'] = 0
@@ -586,22 +702,18 @@ elif st.session_state['role'] == 'student':
                                                 st.rerun()
                             st.markdown("---")
 
-                        # ---------------------------------------------------------
-                        # 🎯 PHẦN 2: TỰ LUYỆN TẬP TỰ DO (CHOOSE YOUR MISSION)
-                        # ---------------------------------------------------------
-                        st.markdown("### 🎯 TỰ LUYỆN TẬP TỰ DO")
+                        # SECTION B: FREE PRACTICE MISSIONS (100% English)
+                        st.markdown("### 🎯 FREE PRACTICE MISSIONS")
                         
                         df_curriculum = get_curriculum_structure()
                         
                         if df_curriculum.empty:
-                            st.warning("📭 Chưa có chương trình học nào được thiết lập. Đợi thầy cô cập nhật nhé!")
+                            st.warning("📭 Curriculum not loaded yet. Check back soon!")
                         else:
-                            # Bộ lọc Skill nắm trùm toàn bộ
                             sel_skill = st.selectbox("⚡ Choose Skill:", ["All", "Listening", "Reading & Writing", "Vocabulary", "Speaking"])
                             st.markdown("<br>", unsafe_allow_html=True)
                             
-                            # Tách lộ trình bằng Tabs trực quan
-                            tab_book, tab_topic = st.tabs(["📚 Lộ trình Sách giáo khoa", "🏆 Lộ trình Luyện thi (Topic)"])
+                            tab_book, tab_topic = st.tabs(["📚 Textbook Path", "🏆 Exam Prep Path (Topic)"])
                             
                             with tab_book:
                                 col_b, col_u = st.columns(2)
@@ -625,7 +737,6 @@ elif st.session_state['role'] == 'student':
                                     
                                 btn_start_topic = st.button("🚀 START TOPIC MISSION", type="primary", use_container_width=True, key="btn_topic")
 
-                            # Xử lý Logic bấm nút (Bấm tab nào thì lấy mode tab đó)
                             if btn_start_book or btn_start_topic:
                                 mode = "book" if btn_start_book else "topic"
                                 with st.spinner("Shuffling questions and preparing missions..."):
@@ -645,7 +756,7 @@ elif st.session_state['role'] == 'student':
                                             mission_qs = build_mission_playlist(all_qs, max_q=20)
                                             
                                             if not mission_qs:
-                                                st.warning("⚠️ Oop! Không có bài tập nào cho mục này. Bé Xu đang đi tìm thêm!")
+                                                st.warning("⚠️ No interactive exercises found for this selection.")
                                             else:
                                                 st.session_state['playlist'] = mission_qs
                                                 st.session_state['current_q'] = 0
@@ -661,7 +772,7 @@ elif st.session_state['role'] == 'student':
                                         st.error(f"⚠️ Error fetching missions: {e}")
 
                     else:
-                        # TRẠNG THÁI HIỂN THỊ BÀI TẬP 
+                        # PLAYING EXERCISE STATE
                         total_q = len(st.session_state['playlist'])
                         curr_idx = st.session_state['current_q']
                         current_q_data = st.session_state['playlist'][curr_idx]
@@ -1087,7 +1198,7 @@ elif st.session_state['role'] == 'teacher':
                 st.error("⚠️ Supabase connection error! Please check your table structure.")
 
         with tab_student:
-            st.markdown("**Add Student to Class**")
+            st.markdown("#### 👧🏻 Manage Class Students")
             res_classes = supabase.table("classes").select("*").eq("teacher_username", st.session_state['current_teacher_username']).execute()
             db_classes = res_classes.data
             
@@ -1099,24 +1210,41 @@ elif st.session_state['role'] == 'teacher':
                 selected_code = selected_class_full.split(" - ")[0]
                 
                 s_name = st.text_input("Student Name (e.g., Harry Potter):").strip()
-                s_avatar = st.file_uploader("Upload Student Avatar (Optional)", type=["png", "jpg", "jpeg"])
                 
-                avatar_b64 = None
+                all_mascots_list = mascot_config.get_all_mascots()
+                avatar_option = st.radio(
+                    "Choose Avatar Style:",
+                    ["🐾 Mascot Study Companion (Recommended)", "📷 Upload Custom Photo"],
+                    horizontal=True
+                )
                 
-                if s_avatar:
-                    st.info("✂️ Drag and resize the blue box to frame the face. (The square will automatically become a circle later!)")
-                    img = Image.open(s_avatar)
-                    cropped_img = st_cropper(img, aspect_ratio=(1, 1), box_color='#0984e3', return_type='image')
-                    
-                    buffered = io.BytesIO()
-                    cropped_img.save(buffered, format="PNG")
-                    avatar_b64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
+                avatar_val = None
+                if avatar_option.startswith("🐾"):
+                    sel_mascot_id = st.selectbox(
+                        "Select Companion Mascot:",
+                        options=[m['id'] for m in all_mascots_list],
+                        format_func=lambda x: f"{mascot_config.get_mascot(x)['badge']} {mascot_config.get_mascot(x)['name']} — {mascot_config.get_mascot(x)['personality']}"
+                    )
+                    avatar_val = f"mascot:{sel_mascot_id}"
+                    m_preview = mascot_config.get_mascot(sel_mascot_id)
+                    st.caption(f"💡 Mascot preview: **{m_preview['name']}** — *{m_preview['description']}*")
+                else:
+                    s_avatar = st.file_uploader("Upload Student Avatar (Optional)", type=["png", "jpg", "jpeg"])
+                    if s_avatar:
+                        st.info("✂️ Drag and resize the blue box to frame the face.")
+                        img = Image.open(s_avatar)
+                        cropped_img = st_cropper(img, aspect_ratio=(1, 1), box_color='#0984e3', return_type='image')
+                        buffered = io.BytesIO()
+                        cropped_img.save(buffered, format="PNG")
+                        avatar_val = base64.b64encode(buffered.getvalue()).decode('utf-8')
+                    else:
+                        avatar_val = f"mascot:{mascot_config.DEFAULT_MASCOT_ID}"
                 
                 if st.button("➕ ADD STUDENT", type="primary"):
                     if s_name:
                         try:
                             supabase.table("students").insert({
-                                "class_code": selected_code, "student_name": s_name, "avatar": avatar_b64
+                                "class_code": selected_code, "student_name": s_name, "avatar": avatar_val
                             }).execute()
                             get_students_in_class.clear()
                             st.success(f"✅ Added {s_name} to class {selected_code} successfully!")
@@ -1136,11 +1264,13 @@ elif st.session_state['role'] == 'teacher':
                         cols = st.columns(4)
                         for i, student in enumerate(res_students.data):
                             with cols[i % 4]:
-                                avt_src = f"data:image/jpeg;base64,{student['avatar']}" if student['avatar'] else "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+                                is_m, m_obj, avt_src = mascot_config.parse_student_avatar(student.get('avatar'))
+                                companion_badge = f"{m_obj['badge']} {m_obj['name']}" if is_m and m_obj else "📷 Photo"
                                 st.markdown(f"""
-                                    <div style="text-align: center; background: rgba(255,255,255,0.8); padding: 15px; border-radius: 15px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 2px solid transparent;">
-                                        <img src="{avt_src}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid #6c5ce7; padding: 2px;">
-                                        <p style="font-weight: bold; margin-top: 10px; margin-bottom: 0; color: #2d3436; font-size: 16px;">{student['student_name']}</p>
+                                    <div style="text-align: center; background: rgba(255,255,255,0.85); padding: 15px; border-radius: 16px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.06); border: 2px solid transparent;">
+                                        <img src="{avt_src}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid #6c5ce7; padding: 2px; background: white;">
+                                        <p style="font-weight: bold; margin-top: 10px; margin-bottom: 3px; color: #2d3436; font-size: 16px;">{student['student_name']}</p>
+                                        <span style="font-size: 11px; color: #6c5ce7; font-weight: bold; background: #ede7f6; padding: 3px 8px; border-radius: 10px;">{companion_badge}</span>
                                     </div>
                                 """, unsafe_allow_html=True)
                     else:

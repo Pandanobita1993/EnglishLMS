@@ -101,12 +101,17 @@ def run_ex1_dynamic(q_data, idx):
                 render();
             }}
 
+            function notifyMascot(status) {{
+                try {{ if (window.parent) window.parent.postMessage({{ type: 'MASCOT_REACTION', status: status }}, '*'); }} catch(e) {{}}
+            }}
             function checkWin() {{
                 if (answer.length === targetWord.length) {{
                     let currentStr = answer.map(a => a.char).join('');
                     if (currentStr === targetWord) {{
+                        notifyMascot('correct');
                         document.getElementById('msg').innerHTML = "<span style='color:#00b894;'>🎉 Awesome! You spelled it correctly!</span>";
                     }} else {{
+                        notifyMascot('wrong');
                         document.getElementById('msg').innerHTML = "<span style='color:#d63031;'>❌ Not quite! Tap 'Delete' to try again!</span>";
                     }}
                 }}
@@ -178,15 +183,20 @@ def run_ex2_dynamic(q_data, idx):
                 }});
             }}
 
+            function notifyMascot(status) {{
+                try {{ if (window.parent) window.parent.postMessage({{ type: 'MASCOT_REACTION', status: status }}, '*'); }} catch(e) {{}}
+            }}
             function checkAnswer() {{
                 if (!selectedOpt) {{
                     document.getElementById('msg').innerHTML = "<span style='color:#fdcb6e;'>⚠️ Please select a word first!</span>";
                     return;
                 }}
                 if (selectedOpt === correctAns) {{
+                    notifyMascot('correct');
                     document.getElementById('msg').innerHTML = "<span style='color:#00b894;'>✅ Perfect! That's correct!</span>";
                     document.querySelectorAll('.opt-btn').forEach(b => b.onclick = null);
                 }} else {{
+                    notifyMascot('wrong');
                     document.getElementById('msg').innerHTML = "<span style='color:#ff7675;'>❌ Oops, try again!</span>";
                 }}
             }}
@@ -271,17 +281,23 @@ def run_ex3_dynamic(all_qs, idx):
                 }});
             }}
 
+            function notifyMascot(status) {{
+                try {{ if (window.parent) window.parent.postMessage({{ type: 'MASCOT_REACTION', status: status }}, '*'); }} catch(e) {{}}
+            }}
             function checkMatch() {{
                 if (selA && selB) {{
                     if (pairs[selA] === selB) {{
+                        notifyMascot('correct');
                         doneA.push(selA); doneB.push(selB);
                         document.getElementById('msg').innerHTML = "<span style='color:#00b894;'>🎉 Correct Match!</span>";
                     }} else {{
+                        notifyMascot('wrong');
                         document.getElementById('msg').innerHTML = "<span style='color:#ff7675;'>❌ Incorrect Match! Try again.</span>";
                     }}
                     selA = null; selB = null;
                     
                     if (doneA.length === arrA.length) {{
+                        notifyMascot('correct');
                         document.getElementById('msg').innerHTML = "<span style='color:#00b894;'>🏆 Awesome! You matched everything!</span>";
                     }}
                 }} else {{
@@ -431,6 +447,9 @@ def run_ex4_dynamic(all_qs, idx):
             pill.addEventListener('dragstart', (e) => e.dataTransfer.setData('text', e.target.id));
             bankEl.appendChild(pill);
         }}
+            function notifyMascot(status) {{
+                try {{ if (window.parent) window.parent.postMessage({{ type: 'MASCOT_REACTION', status: status }}, '*'); }} catch(e) {{}}
+            }}
         function checkAnswers() {{
             let allCorrect = true; let filledCount = 0;
             document.querySelectorAll('.drop-zone').forEach(zone => {{
@@ -443,8 +462,13 @@ def run_ex4_dynamic(all_qs, idx):
             }});
             let msg = document.getElementById('message');
             if(filledCount < Object.keys(picMapping).length) msg.innerHTML = "<span style='color:#fdcb6e;'>⚠️ You haven't found all words yet!</span>";
-            else if (!allCorrect) msg.innerHTML = "<span style='color:#ff7675;'>❌ Oops, some matches are incorrect. Try again!</span>";
-            else msg.innerHTML = "<span style='color:#00b894;'>🎉 EXCELLENT! You found and matched everything perfectly! 🏆</span>";
+            else if (!allCorrect) {{
+                notifyMascot('wrong');
+                msg.innerHTML = "<span style='color:#ff7675;'>❌ Oops, some matches are incorrect. Try again!</span>";
+            }} else {{
+                notifyMascot('correct');
+                msg.innerHTML = "<span style='color:#00b894;'>🎉 EXCELLENT! You found and matched everything perfectly! 🏆</span>";
+            }}
         }}
     </script>
     </body>
@@ -543,7 +567,11 @@ def run_ex5_dynamic(all_qs, idx):
                 isMatch ? disableCards() : unflipCards();
             }}
 
+            function notifyMascot(status) {{
+                try {{ if (window.parent) window.parent.postMessage({{ type: 'MASCOT_REACTION', status: status }}, '*'); }} catch(e) {{}}
+            }}
             function disableCards() {{
+                notifyMascot('correct');
                 lockBoard = true;
                 setTimeout(() => {{
                     firstCard.classList.add('matched');
@@ -557,6 +585,7 @@ def run_ex5_dynamic(all_qs, idx):
             }}
 
             function unflipCards() {{
+                notifyMascot('wrong');
                 lockBoard = true;
                 setTimeout(() => {{
                     firstCard.classList.remove('flipped');
@@ -660,13 +689,18 @@ def run_ex6_dynamic(q_data, idx):
                 ghostClass: 'sortable-ghost'
             }});
 
+            function notifyMascot(status) {{
+                try {{ if (window.parent) window.parent.postMessage({{ type: 'MASCOT_REACTION', status: status }}, '*'); }} catch(e) {{}}
+            }}
             function checkOrder() {{
                 const currentOrder = Array.from(listEl.children).map(el => el.innerText).join(' ');
                 if (currentOrder === correctSentence) {{
+                    notifyMascot('correct');
                     document.getElementById('msg').innerHTML = "<span style='color:#00b894;'>✅ Awesome! You've matched the sentence correctly!</span>";
                     listEl.style.borderColor = '#00b894';
                     listEl.style.backgroundColor = '#e1fcf4';
                 }} else {{
+                    notifyMascot('wrong');
                     document.getElementById('msg').innerHTML = "<span style='color:#ff7675;'>❌ Not quite! Let's try rearranging them again!</span>";
                     listEl.style.borderColor = '#ff7675';
                 }}
@@ -791,6 +825,10 @@ def run_ex7_dynamic(all_qs, idx):
                 }});
             }}
 
+                        function notifyMascot(status) {{
+                try {{ if (window.parent) window.parent.postMessage({{ type: 'MASCOT_REACTION', status: status }}, '*'); }} catch(e) {{}}
+            }}
+
             function checkAll() {{
                 const unanswered = state.filter(s => !s.done && !s.selected).length;
                 if (unanswered > 0) {{
@@ -810,9 +848,11 @@ def run_ex7_dynamic(all_qs, idx):
 
                 const correctCount = state.filter(s => s.done).length;
                 if (correctCount === items.length) {{
+                    notifyMascot('correct');
                     document.getElementById('btn').style.display = 'none';
                     setMsg('#00b894', '🏆 Perfect! ' + correctCount + '/' + items.length + ' — You found every odd one out!');
                 }} else {{
+                    notifyMascot('wrong');
                     setMsg('#ff7675', '⭐ ' + correctCount + '/' + items.length + ' correct. Fix the rows without a green frame and try again!');
                 }}
             }}
@@ -1239,6 +1279,10 @@ def run_ex8_dynamic(all_qs, idx):
                 init();
             }}
 
+                        function notifyMascot(status) {{
+                try {{ if (window.parent) window.parent.postMessage({{ type: 'MASCOT_REACTION', status: status }}, '*'); }} catch(e) {{}}
+            }}
+
             function checkAnswers() {{
                 const unplaced = initialWords.filter(w => placements[w.id] === null);
                 if (unplaced.length > 0) {{
@@ -1259,9 +1303,11 @@ def run_ex8_dynamic(all_qs, idx):
                 render();
 
                 if (correctCount === initialWords.length) {{
+                    notifyMascot('correct');
                     setMsg('#00b894', '🎉 HOORAY! You sorted all ' + correctCount + ' words correctly! 🏆');
                     document.getElementById('btn-check').style.display = 'none';
                 }} else {{
+                    notifyMascot('wrong');
                     setMsg('#ff7675', '⭐ ' + correctCount + '/' + initialWords.length + ' correct! Tap on the red words (❌) to return them to the Word Bank!');
                 }}
             }}
